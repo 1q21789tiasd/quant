@@ -40,8 +40,9 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "quant",
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
-    model: process.env.OPENAI_MODEL || "gpt-5.6-luna"
+    aiConfigured: Boolean(process.env.TOKUN_API_KEY),
+    provider: "tokun",
+    model: "openai/gpt-5.6-luna"
   });
 });
 
