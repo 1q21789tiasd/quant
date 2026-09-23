@@ -1,5 +1,5 @@
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
+const TOKUN_API_URL = "https://api.tokun.sh/v1/responses";
+const MODEL = "openai/gpt-5.6-luna";
 
 const analysisSchema = {
   type: "object",
@@ -166,8 +166,8 @@ function sanitizeResult(result) {
 }
 
 async function analyzeChartImage({ buffer, mimeType, note = "" }) {
-  if (!process.env.OPENAI_API_KEY) {
-    const error = new Error("OPENAI_API_KEY is not configured");
+  if (!process.env.TOKUN_API_KEY) {
+    const error = new Error("TOKUN_API_KEY is not configured");
     error.status = 503;
     error.code = "service_not_configured";
     throw error;
@@ -181,14 +181,14 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
 
   let response;
   try {
-    response = await fetch(OPENAI_API_URL, {
+    response = await fetch(TOKUN_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.TOKUN_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model: MODEL,
         store: false,
         max_output_tokens: 1600,
         reasoning: { effort: "none" },
@@ -274,7 +274,7 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
   return {
     analysis: sanitizeResult(parsed),
     meta: {
-      model: DEFAULT_MODEL,
+      model: MODEL,
       responseId: payload.id || null,
       inputTokens: payload.usage?.input_tokens ?? null,
       outputTokens: payload.usage?.output_tokens ?? null,
