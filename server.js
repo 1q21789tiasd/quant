@@ -40,9 +40,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "quant",
-    aiConfigured: Boolean(process.env.TOKUN_API_KEY),
-    provider: "tokun",
-    model: "openai/gpt-5.6-luna"
+    analysisReady: Boolean(process.env.TOKUN_API_KEY)
   });
 });
 
@@ -93,11 +91,21 @@ app.use((error, _req, res, _next) => {
     message: error.message
   });
 
+  const safeClientErrors = new Map([
+    ["chart_required", "Upload a chart screenshot first"],
+    ["LIMIT_FILE_SIZE", "Image is too large. Maximum size is 12 MB."]
+  ]);
+
+  const publicCode = status >= 500 ? "analysis_error" : (error.code || "request_error");
+  const publicMessage =
+    safeClientErrors.get(error.code) ||
+    (status >= 500
+      ? "Quant could not complete this analysis. Please try again."
+      : "The request could not be completed.");
+
   res.status(status).json({
-    error: error.code || "internal_error",
-    message: status >= 500 && !error.code
-      ? "Something went wrong while analyzing the chart"
-      : error.message
+    error: publicCode,
+    message: publicMessage
   });
 });
 
