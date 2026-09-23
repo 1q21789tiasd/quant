@@ -213,9 +213,9 @@ function sanitizeResult(result) {
 
 async function analyzeChartImage({ buffer, mimeType, note = "" }) {
   if (!process.env.TOKUN_API_KEY) {
-    const error = new Error("TOKUN_API_KEY is not configured");
+    const error = new Error("Analysis service is unavailable");
     error.status = 503;
-    error.code = "service_not_configured";
+    error.code = "analysis_unavailable";
     throw error;
   }
 
@@ -295,16 +295,16 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
         error: `${response.status}: ${message}`
       });
 
-      const error = new Error(message);
-      error.status = response.status;
-      error.code = payload?.error?.code || "provider_error";
+      const error = new Error("Analysis service request failed");
+      error.status = response.status >= 500 ? response.status : 502;
+      error.code = "analysis_service_error";
       throw error;
     }
 
     if (!response.body) {
-      const error = new Error("AI provider returned no response stream");
+      const error = new Error("Analysis service returned no response");
       error.status = 502;
-      error.code = "empty_ai_stream";
+      error.code = "analysis_empty_response";
       finishContextRequest({ requestId, error: error.message });
       throw error;
     }
@@ -444,9 +444,9 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
         error: streamError
       });
 
-      const error = new Error(streamError);
+      const error = new Error("Analysis stream failed");
       error.status = 502;
-      error.code = "provider_stream_error";
+      error.code = "analysis_stream_error";
       throw error;
     }
 
@@ -470,7 +470,7 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
     }
 
     if (!outputText) {
-      const message = refusalText || "AI returned no analysis";
+      const message = "Analysis could not be completed";
       finishContextRequest({
         requestId,
         responseId,
@@ -480,7 +480,7 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
 
       const error = new Error(message);
       error.status = 502;
-      error.code = refusalText ? "ai_refusal" : "empty_ai_response";
+      error.code = "analysis_no_result";
       throw error;
     }
 
@@ -492,12 +492,12 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
         requestId,
         responseId,
         usage,
-        error: "AI returned invalid structured data"
+        error: "Analysis returned invalid data"
       });
 
-      const error = new Error("AI returned invalid structured data");
+      const error = new Error("Analysis returned invalid data");
       error.status = 502;
-      error.code = "invalid_ai_response";
+      error.code = "analysis_invalid_result";
       throw error;
     }
 
@@ -510,9 +510,6 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
     return {
       analysis: sanitizeResult(parsed),
       meta: {
-        model: MODEL,
-        provider: "tokun",
-        responseId: responseId || null,
         inputTokens: usage?.input_tokens ?? null,
         outputTokens: usage?.output_tokens ?? null,
         totalTokens: usage?.total_tokens ?? null
@@ -525,9 +522,9 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
         error: "AI analysis timed out"
       });
 
-      const timeoutError = new Error("AI analysis timed out");
+      const timeoutError = new Error("Analysis timed out");
       timeoutError.status = 504;
-      timeoutError.code = "ai_timeout";
+      timeoutError.code = "analysis_timeout";
       throw timeoutError;
     }
 
