@@ -48,7 +48,7 @@ button,input,textarea{font:inherit}button{color:inherit}.hidden{display:none!imp
     <button class="sidebtn" id="newNav"><span>＋</span>New analysis</button>
   </div>
   <div class="sidefill"></div>
-  <div class="status"><div class="status-row"><i class="status-dot"></i>Tokun · GPT-5.6 Luna</div><small>Screenshot analysis only. Quant does not use hidden live-market data.</small></div>
+  <div class="status"><div class="status-row"><i class="status-dot"></i>Analysis engine ready</div><small>Screenshot analysis only. Quant reads only the chart you upload.</small></div>
 </aside>
 
 <main class="shell">
@@ -133,11 +133,11 @@ function newAnalysis(){lastData=null;$("report").classList.remove("show");$("upl
 function chips(id,arr){$(id).innerHTML=(arr&&arr.length?arr:["None clearly visible"]).map(x=>'<span class="chip">'+esc(typeof x==="number"?fmt(x):x)+'</span>').join("")}
 function bullets(id,arr){$(id).innerHTML=(arr&&arr.length?arr:["No additional note."]).map(x=>'<li><i></i><span>'+esc(x)+'</span></li>').join("")}
 function render(d){
-  const a=d.analysis,m=d.meta||{},cls=a.signal==="BUY"?"buy":a.signal==="SELL"?"sell":"wait";
+  const a=d.analysis,cls=a.signal==="BUY"?"buy":a.signal==="SELL"?"sell":"wait";
   $("verdict").className="card verdict "+cls;$("signal").textContent=a.signal;$("setup").textContent=a.setup||"—";$("confidence").textContent=(a.confidence||0)+"% setup confidence";$("summary").textContent=a.summary||"—";
   $("entry").textContent=zone(a.entry?.low,a.entry?.high);$("tp").textContent=(a.takeProfit||[]).filter(Boolean).map(fmt).join(" / ")||"—";$("sl").textContent=fmt(a.stopLoss);$("rr").textContent=a.riskReward?"1 : "+Number(a.riskReward).toFixed(2):"—";
   $("reportAsset").textContent=(a.instrument?.name||a.instrument?.symbol||"Detected chart")+" · "+(a.instrument?.symbol||"");
-  $("reportMeta").textContent=[a.instrument?.market,a.instrument?.exchange,a.instrument?.timeframe].filter(Boolean).join(" · ")+" · "+(m.model||"GPT-5.6 Luna");
+  $("reportMeta").textContent=[a.instrument?.market,a.instrument?.exchange,a.instrument?.timeframe].filter(Boolean).join(" · ");
   $("quality").textContent="Image quality: "+(a.imageQuality||"unknown");$("reportImage").src=objectUrl||$("preview").src;
   bullets("reasons",a.reasons);
   $("planNow").textContent=a.tradePlan?.actionNow||"—";$("planConfirm").textContent=a.tradePlan?.confirmation||"—";$("planInvalid").textContent=a.tradePlan?.invalidation||"—";$("planManage").textContent=a.tradePlan?.management||"—";
