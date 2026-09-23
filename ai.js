@@ -1,5 +1,59 @@
+const fs = require("fs");
+const path = require("path");
+
 const TOKUN_API_URL = "https://api.tokun.sh/v1/responses";
 const MODEL = "openai/gpt-5.6-luna";
+
+const logging_to_file = true;
+const CONTEXT_FILE = process.env.VERCEL
+  ? "/tmp/context.md"
+  : path.join(__dirname, "context.md");
+
+function appendContext(text) {
+  if (!logging_to_file || !text) return;
+  fs.appendFileSync(CONTEXT_FILE, text, "utf8");
+}
+
+function startContextSession() {
+  if (!logging_to_file) return;
+
+  appendContext(
+    `\n\n---\n\n# Quant Session\n\n` +
+    `Started: ${new Date().toISOString()}\n` +
+    `Provider: Tokun\n` +
+    `Model: ${MODEL}\n` +
+    `Logging: live / unbuffered\n\n`
+  );
+}
+
+function startContextRequest({ mimeType, bytes, note }) {
+  const requestId = crypto.randomUUID();
+
+  appendContext(
+    `## Request ${requestId}\n\n` +
+    `Time: ${new Date().toISOString()}\n` +
+    `Input: chart screenshot (${mimeType}, ${bytes} bytes)\n` +
+    (note ? `User note: ${note}\n` : "") +
+    `\n### Assistant (live)\n\n`
+  );
+
+  return requestId;
+}
+
+function finishContextRequest({ requestId, responseId, usage, error }) {
+  appendContext(
+    `\n\n### Request metadata\n\n` +
+    `Request ID: ${requestId}\n` +
+    `Provider response ID: ${responseId || "n/a"}\n` +
+    `Input tokens: ${usage?.input_tokens ?? "n/a"}\n` +
+    `Output tokens: ${usage?.output_tokens ?? "n/a"}\n` +
+    `Total tokens: ${usage?.total_tokens ?? "n/a"}\n` +
+    (error ? `Error: ${error}\n` : "") +
+    `\n---\n\n`
+  );
+}
+
+startContextSession();
 
 const analysisSchema = {
   type: "object",
@@ -175,20 +229,28 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
 
   const base64 = buffer.toString("base64");
   const imageUrl = `data:${mimeType};base64,${base64}`;
+  const requestId = startContextRequest({
+    mimeType,
+    bytes: buffer.length,
+    note: String(note || "").slice(0, 500)
+  });
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
 
   let response;
+
   try {
     response = await fetch(TOKUN_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.TOKUN_API_KEY}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        Accept: "text/event-stream"
       },
       body: JSON.stringify({
         model: MODEL,
+        stream: true,
         store: false,
         max_output_tokens: 1600,
         reasoning: { effort: "none" },
@@ -225,64 +287,265 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
       }),
       signal: controller.signal
     });
+
+    if (!response.ok) {
+      const raw = await response.text();
+      let payload = {};
+      try {
+        payload = JSON.parse(raw);
+      } catch {}
+
+      const message = payload?.error?.message || raw || "AI provider request failed";
+      finishContextRequest({
+        requestId,
+        responseId: payload?.id || null,
+        usage: payload?.usage || null,
+        error: `${response.status}: ${message}`
+      });
+
+      const error = new Error(message);
+      error.status = response.status;
+      error.code = payload?.error?.code || "provider_error";
+      throw error;
+    }
+
+    if (!response.body) {
+      const error = new Error("AI provider returned no response stream");
+      error.status = 502;
+      error.code = "empty_ai_stream";
+      finishContextRequest({ requestId, error: error.message });
+      throw error;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let sseBuffer = "";
+    let outputText = "";
+    let reasoningText = "";
+    let refusalText = "";
+    let responseId = null;
+    let usage = null;
+    let finalResponse = null;
+    let streamError = null;
+    let reasoningHeaderWritten = false;
+    let refusalHeaderWritten = false;
+    let assistantHeaderRestored = true;
+
+    function writeReasoning(delta) {
+      if (!delta) return;
+      if (!reasoningHeaderWritten) {
+        appendContext("\n\n#### Reasoning stream\n\n");
+        reasoningHeaderWritten = true;
+        assistantHeaderRestored = false;
+      }
+      appendContext(delta);
+      reasoningText += delta;
+    }
+
+    function writeAssistant(delta) {
+      if (!delta) return;
+      if (!assistantHeaderRestored) {
+        appendContext("\n\n#### Assistant output\n\n");
+        assistantHeaderRestored = true;
+      }
+      // IMPORTANT: append immediately for every provider delta.
+      // Nothing is buffered before being written to context.md.
+      appendContext(delta);
+      outputText += delta;
+    }
+
+    function writeRefusal(delta) {
+      if (!delta) return;
+      if (!refusalHeaderWritten) {
+        appendContext("\n\n#### Refusal stream\n\n");
+        refusalHeaderWritten = true;
+      }
+      appendContext(delta);
+      refusalText += delta;
+    }
+
+    function handleEvent(event) {
+      if (!event || typeof event !== "object") return;
+
+      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+        writeAssistant(event.delta);
+        return;
+      }
+
+      if (
+        (event.type === "response.reasoning_summary_text.delta" ||
+         event.type === "response.reasoning_text.delta") &&
+        typeof event.delta === "string"
+      ) {
+        writeReasoning(event.delta);
+        return;
+      }
+
+      if (event.type === "response.refusal.delta" && typeof event.delta === "string") {
+        writeRefusal(event.delta);
+        return;
+      }
+
+      if (event.type === "response.completed" && event.response) {
+        finalResponse = event.response;
+        responseId = event.response.id || responseId;
+        usage = event.response.usage || usage;
+        return;
+      }
+
+      if (event.type === "error") {
+        streamError =
+          event.error?.message ||
+          event.message ||
+          "AI provider stream failed";
+      }
+    }
+
+    function consumeSseBlock(block) {
+      if (!block.trim()) return;
+
+      const dataLines = block
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart());
+
+      if (!dataLines.length) return;
+
+      const data = dataLines.join("\n");
+      if (!data || data === "[DONE]") return;
+
+      try {
+        handleEvent(JSON.parse(data));
+      } catch {
+        // Never dump raw SSE JSON into context.md.
+        // Only readable provider output deltas are written there.
+      }
+    }
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (value) {
+        sseBuffer += decoder.decode(value, { stream: !done });
+
+        let boundary;
+        while ((boundary = sseBuffer.search(/\r?\n\r?\n/)) !== -1) {
+          const block = sseBuffer.slice(0, boundary);
+          const match = sseBuffer.slice(boundary).match(/^(\r?\n){2}/);
+          sseBuffer = sseBuffer.slice(boundary + (match ? match[0].length : 2));
+          consumeSseBlock(block);
+        }
+      }
+
+      if (done) break;
+    }
+
+    sseBuffer += decoder.decode();
+    if (sseBuffer.trim()) consumeSseBlock(sseBuffer);
+
+    if (streamError) {
+      finishContextRequest({
+        requestId,
+        responseId,
+        usage,
+        error: streamError
+      });
+
+      const error = new Error(streamError);
+      error.status = 502;
+      error.code = "provider_stream_error";
+      throw error;
+    }
+
+    // Some OpenAI-compatible providers may only expose the final response
+    // at completion. Use it only as a fallback, never duplicate streamed text.
+    if (!outputText && finalResponse) {
+      const contentParts = (finalResponse.output || []).flatMap((item) => item.content || []);
+      outputText = finalResponse.output_text || contentParts
+        .filter((part) => part.type === "output_text")
+        .map((part) => part.text || "")
+        .join("");
+
+      if (outputText) appendContext(outputText);
+
+      if (!refusalText) {
+        refusalText = contentParts
+          .filter((part) => part.type === "refusal")
+          .map((part) => part.refusal || "")
+          .join("");
+      }
+    }
+
+    if (!outputText) {
+      const message = refusalText || "AI returned no analysis";
+      finishContextRequest({
+        requestId,
+        responseId,
+        usage,
+        error: message
+      });
+
+      const error = new Error(message);
+      error.status = 502;
+      error.code = refusalText ? "ai_refusal" : "empty_ai_response";
+      throw error;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(outputText);
+    } catch {
+      finishContextRequest({
+        requestId,
+        responseId,
+        usage,
+        error: "AI returned invalid structured data"
+      });
+
+      const error = new Error("AI returned invalid structured data");
+      error.status = 502;
+      error.code = "invalid_ai_response";
+      throw error;
+    }
+
+    finishContextRequest({
+      requestId,
+      responseId,
+      usage
+    });
+
+    return {
+      analysis: sanitizeResult(parsed),
+      meta: {
+        model: MODEL,
+        provider: "tokun",
+        responseId: responseId || null,
+        inputTokens: usage?.input_tokens ?? null,
+        outputTokens: usage?.output_tokens ?? null,
+        totalTokens: usage?.total_tokens ?? null
+      }
+    };
   } catch (error) {
     if (error.name === "AbortError") {
+      finishContextRequest({
+        requestId,
+        error: "AI analysis timed out"
+      });
+
       const timeoutError = new Error("AI analysis timed out");
       timeoutError.status = 504;
       timeoutError.code = "ai_timeout";
       throw timeoutError;
     }
+
     throw error;
   } finally {
     clearTimeout(timeout);
   }
-
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const error = new Error(payload?.error?.message || "AI provider request failed");
-    error.status = response.status;
-    error.code = payload?.error?.code || "provider_error";
-    throw error;
-  }
-
-  const contentParts = (payload.output || []).flatMap((item) => item.content || []);
-  const outputText = payload.output_text || contentParts
-    .filter((part) => part.type === "output_text")
-    .map((part) => part.text || "")
-    .join("");
-
-  if (!outputText) {
-    const refusal = contentParts.find((part) => part.type === "refusal")?.refusal;
-
-    const error = new Error(refusal || "AI returned no analysis");
-    error.status = 502;
-    error.code = refusal ? "ai_refusal" : "empty_ai_response";
-    throw error;
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(outputText);
-  } catch {
-    const error = new Error("AI returned invalid structured data");
-    error.status = 502;
-    error.code = "invalid_ai_response";
-    throw error;
-  }
-
-  return {
-    analysis: sanitizeResult(parsed),
-    meta: {
-      model: MODEL,
-      responseId: payload.id || null,
-      inputTokens: payload.usage?.input_tokens ?? null,
-      outputTokens: payload.usage?.output_tokens ?? null,
-      totalTokens: payload.usage?.total_tokens ?? null
-    }
-  };
 }
 
 module.exports = {
-  analyzeChartImage
+  analyzeChartImage,
+  CONTEXT_FILE
 };
