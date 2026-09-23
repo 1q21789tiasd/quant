@@ -4,692 +4,253 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Quant — Chart Studio</title>
+<title>Quant — Studio</title>
 <style>
 :root{
-  --bg:#090909;
-  --panel:#0d0d0e;
-  --panel2:#101112;
-  --panel3:#121314;
-  --line:#202224;
-  --line2:#2b2e31;
-  --text:#f1f1ef;
-  --muted:#9a9a98;
-  --muted2:#66696c;
-  --green:#66c995;
-  --red:#e96c72;
-  --greenDim:rgba(102,201,149,.08);
-  --redDim:rgba(233,108,114,.08);
-  --side:184px;
+  --bg:#080808;
+  --side:#0a0a0a;
+  --panel:#0d0e0f;
+  --panel2:#111213;
+  --panel3:#141516;
+  --line:#1c1f21;
+  --line2:#2a2d30;
+  --text:#f2f2ef;
+  --muted:#959a9d;
+  --muted2:#62676a;
+  --green:#68c89a;
+  --red:#e06d73;
+  --sidew:194px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
-body{
-  font:12px Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  -webkit-font-smoothing:antialiased;
-  background:#090909;
-}
-button,input,textarea{font:inherit}
-button{color:inherit}
-.hidden{display:none!important}
-.app{min-height:100vh;background:#090909}
+body{font:12px Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit}button{color:inherit}.hidden{display:none!important}
+.app{min-height:100vh;background:#080808}
 
 /* sidebar */
 .sidebar{
-  position:fixed;
-  inset:0 auto 0 0;
-  width:var(--side);
-  background:#080808;
-  border-right:1px solid #171819;
-  display:flex;
-  flex-direction:column;
-  z-index:30;
+  position:fixed;inset:0 auto 0 0;width:var(--sidew);z-index:30;
+  display:flex;flex-direction:column;background:var(--side);border-right:1px solid #17191b
 }
 .brand{
-  height:58px;
-  display:flex;
-  align-items:center;
-  gap:9px;
-  padding:0 15px;
-  border-bottom:1px solid #171819;
+  height:58px;display:flex;align-items:center;gap:9px;padding:0 14px;border-bottom:1px solid #17191b
 }
-.logo{
-  width:24px;
-  height:24px;
-  border:5px solid #f0f0ee;
-  border-radius:50%;
-  position:relative;
+.logo{width:24px;height:24px;border:5px solid #f1f1ee;border-radius:50%;position:relative}
+.logo:after{content:"";position:absolute;width:7px;height:5px;background:var(--side);right:-5px;bottom:-3px;transform:rotate(42deg)}
+.word{font-size:17px;font-weight:720;letter-spacing:-.04em}
+.tag{font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:#5d6265;margin-top:1px}
+.nav{padding:11px 8px}
+.nav-label{padding:8px 9px 6px;color:#515659;font-size:7px;letter-spacing:.15em;text-transform:uppercase}
+.navbtn{
+  width:100%;height:34px;border:0;border-radius:3px;background:transparent;color:#92979a;
+  display:flex;align-items:center;gap:9px;padding:0 10px;text-align:left;cursor:pointer;font-size:10px
 }
-.logo:after{
-  content:"";
-  position:absolute;
-  width:7px;
-  height:5px;
-  background:#080808;
-  right:-5px;
-  bottom:-3px;
-  transform:rotate(42deg);
+.navbtn+.navbtn{margin-top:2px}
+.navbtn:hover{background:#0f1011;color:#d6d8d8}
+.navbtn.active{background:#151617;color:#fff}
+.navico{width:18px;text-align:center;color:#74797c;font-size:13px}
+.navbtn.active .navico{color:#d9dbda}
+.navcount{
+  margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#1a1c1e;
+  display:grid;place-items:center;color:#82878a;font-size:8px
 }
-.word{font-size:17px;font-weight:700;letter-spacing:-.04em}
-.tag{
-  margin-top:1px;
-  font-size:7px;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-  color:#5d6062;
-}
-.side-main{padding:10px 8px}
-.sidebtn{
-  width:100%;
-  height:34px;
-  border:1px solid transparent;
-  border-radius:4px;
-  background:transparent;
-  color:#94989b;
-  padding:0 10px;
-  text-align:left;
-  cursor:pointer;
-  font-size:11px;
-}
-.sidebtn:hover{background:#0f1011;color:#dcdedc}
-.sidebtn.active{
-  background:#141516;
-  border-color:#292c2e;
-  color:#fff;
-  box-shadow:inset 2px 0 #e7e7e4;
-}
-.sidebtn+.sidebtn{margin-top:3px}
-.sidebtn span{display:inline-block;width:23px;color:#777b7e}
 .sidefill{flex:1}
-.status{
-  margin:10px;
-  border:1px solid #1e2022;
-  border-radius:4px;
-  background:#0b0c0d;
-  padding:10px;
-}
-.status-row{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  font-size:9px;
-  color:#969a9d;
-}
-.status-dot{
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:#d9dddc;
-  box-shadow:0 0 0 3px rgba(255,255,255,.035);
-}
-.status small{
-  display:block;
-  color:#5c6063;
-  font-size:8px;
-  line-height:1.5;
-  margin-top:7px;
-}
+.sidefoot{padding:10px;border-top:1px solid #17191b}
+.engine{display:flex;gap:8px;align-items:center;color:#8e9396;font-size:9px}
+.engine-dot{width:6px;height:6px;border-radius:50%;background:#d9dcda}
+.sidefoot p{margin:7px 0 0;color:#53585b;font-size:8px;line-height:1.45}
 
-/* shell / top */
-.shell{margin-left:var(--side);min-height:100vh}
-.top{
-  height:58px;
-  border-bottom:1px solid #171819;
-  background:#0a0a0a;
-  display:flex;
-  align-items:center;
-  padding:0 18px;
-  position:sticky;
-  top:0;
-  z-index:20;
+/* shell */
+.shell{margin-left:var(--sidew);min-height:100vh}
+.topbar{
+  height:58px;position:sticky;top:0;z-index:20;background:#090909;border-bottom:1px solid #17191b;
+  display:flex;align-items:center;padding:0 18px
 }
-.top h1{
-  font-size:13px;
-  line-height:1;
-  margin:0;
-  font-weight:600;
-  letter-spacing:-.02em;
-}
-.top p{
-  margin:4px 0 0;
-  color:#666a6d;
-  font-size:8px;
-}
+.page-title{font-size:13px;font-weight:620;letter-spacing:-.02em}
+.page-sub{font-size:8px;color:#62676a;margin-top:3px}
 .top-actions{margin-left:auto;display:flex;gap:6px}
-
-/* controls */
 .btn{
-  height:30px;
-  border-radius:4px;
-  padding:0 11px;
-  cursor:pointer;
-  font-size:10px;
-  transition:.14s ease;
+  height:29px;border-radius:3px;padding:0 10px;font-size:9px;cursor:pointer;transition:.13s;
+  border:1px solid #2a2d2f;background:#101112;color:#c4c7c8
 }
-.btn.dark{
-  border:1px solid #2a2d2f;
-  background:#0e0f10;
-  color:#c4c6c6;
-}
-.btn.dark:hover{background:#151617;border-color:#383c3f}
-.btn.white{
-  border:1px solid #d8d8d5;
-  background:#e9e9e6;
-  color:#090909;
-  font-weight:700;
-}
-.btn.white:hover{background:#fff}
+.btn:hover{background:#161718;border-color:#383b3e}
+.btn.primary{background:#e9e9e6;color:#090909;border-color:#e9e9e6;font-weight:700}
+.btn.primary:hover{background:#fff}
 .btn:disabled{opacity:.35;cursor:not-allowed}
+.main{max-width:1480px;margin:0 auto;padding:18px}
 
-/* main */
-.main{
-  max-width:1460px;
-  margin:0 auto;
-  padding:18px;
+/* dashboard */
+.view{display:none}.view.active{display:block}
+.dash-head{display:flex;align-items:flex-start;margin-bottom:18px}
+.greeting{font-size:28px;font-weight:620;letter-spacing:-.045em;margin:0}
+.greeting-sub{margin:6px 0 0;color:#707578;font-size:10px}
+.dash-head .btn{margin-left:auto}
+.stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px
 }
-.upload-view{
-  min-height:calc(100vh - 94px);
-  display:grid;
-  place-items:center;
+.stat{
+  border-top:1px solid #25282a;border-bottom:1px solid #17191b;background:#0b0c0d;
+  padding:14px 13px;min-height:92px
 }
-.upload-wrap{width:min(760px,100%)}
-.eyebrow{
-  font-size:8px;
-  letter-spacing:.13em;
-  text-transform:uppercase;
-  color:#626669;
-  text-align:center;
+.stat-label{font-size:8px;color:#62676a;text-transform:uppercase;letter-spacing:.08em}
+.stat-value{font-size:24px;letter-spacing:-.04em;margin-top:9px;font-weight:620}
+.stat-foot{font-size:8px;color:#565b5e;margin-top:7px}
+.dashboard-grid{
+  display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,.65fr);gap:8px
 }
-.hero-title{
-  margin:7px 0 6px;
-  text-align:center;
-  font-size:28px;
-  font-weight:600;
-  letter-spacing:-.04em;
+.panel{border:1px solid #1d2022;background:#0b0c0d;border-radius:4px}
+.panel-head{
+  height:40px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid #191c1e
 }
-.hero-sub{
-  margin:0 auto 18px;
-  text-align:center;
-  color:#808487;
-  max-width:600px;
-  line-height:1.55;
-  font-size:10px;
+.panel-head b{font-size:10px}.panel-head span{margin-left:auto;color:#5f6467;font-size:8px}
+.latest{padding:14px}
+.latest-empty{min-height:230px;display:grid;place-items:center;text-align:center;color:#656a6d}
+.latest-empty strong{display:block;color:#c8cbcb;font-size:13px;margin-bottom:6px}
+.latest-empty p{margin:0 0 12px;font-size:9px}
+.latest-top{display:flex;align-items:flex-start;gap:12px}
+.latest-symbol{font-size:20px;font-weight:630;letter-spacing:-.035em}
+.latest-meta{font-size:8px;color:#656a6d;margin-top:4px}
+.badge{
+  margin-left:auto;height:25px;padding:0 8px;border:1px solid #2c3032;border-radius:3px;
+  display:flex;align-items:center;font-size:8px;color:#aeb2b3;background:#0d0e0f
 }
+.latest-signal{font-size:34px;font-weight:650;letter-spacing:-.05em;margin-top:16px}
+.latest-signal.buy{color:var(--green)}.latest-signal.sell{color:var(--red)}
+.latest-signal.wait{color:#e6e7e5}
+.latest-summary{margin:10px 0 0;color:#a4a8aa;font-size:10px;line-height:1.55;max-width:760px}
+.latest-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:13px}
+.mini-metric{border-top:1px solid #202326;padding:9px 2px 0}
+.mini-metric span{font-size:7px;color:#5f6467;text-transform:uppercase;letter-spacing:.07em}
+.mini-metric b{display:block;margin-top:5px;font-size:10px;font-weight:600}
+.quick{padding:13px}
+.quick h3{font-size:10px;margin:0 0 11px}
+.quick-grid{display:grid;gap:6px}
+.quick-item{
+  min-height:56px;border-top:1px solid #1b1e20;padding:9px 0;display:flex;align-items:flex-start;gap:10px
+}
+.quick-item:first-child{border-top:0;padding-top:0}
+.quick-num{
+  width:22px;height:22px;display:grid;place-items:center;border:1px solid #282c2e;border-radius:3px;
+  color:#9da1a3;font-size:8px;flex:0 0 auto
+}
+.quick-item b{font-size:9px}.quick-item p{margin:4px 0 0;color:#62676a;font-size:8px;line-height:1.45}
+.recent{margin-top:8px}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{
+  height:34px;border-bottom:1px solid #181b1d;padding:0 11px;text-align:left;font-size:8px
+}
+.table th{color:#5e6366;font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.table td{color:#b5b8ba}
+.table tr:last-child td{border-bottom:0}
+.signal-text.buy{color:var(--green)}.signal-text.sell{color:var(--red)}.signal-text.wait{color:#c9cccd}
+.empty-row{text-align:center!important;color:#5f6467!important;height:90px!important}
 
-/* upload */
+/* analyze view */
+.analyze-head{display:flex;align-items:flex-start;margin-bottom:12px}
+.analyze-head h2{margin:0;font-size:20px;letter-spacing:-.035em;font-weight:620}
+.analyze-head p{margin:4px 0 0;color:#6a6f72;font-size:9px}
+.analyze-layout{
+  display:grid;grid-template-columns:minmax(0,1.25fr) 300px;gap:8px
+}
+.workspace{border:1px solid #1d2022;background:#0b0c0d;border-radius:4px}
+.workspace-head{height:38px;border-bottom:1px solid #191c1e;padding:0 11px;display:flex;align-items:center}
+.workspace-head b{font-size:9px}.workspace-head span{margin-left:auto;color:#5d6265;font-size:8px}
 .drop{
-  height:300px;
-  border:1px dashed #363a3d;
-  border-radius:5px;
-  background:#0c0d0e;
-  display:grid;
-  place-items:center;
-  text-align:center;
-  position:relative;
-  overflow:hidden;
-  transition:.14s;
+  height:380px;border:0;border-bottom:1px solid #191c1e;background:#0a0b0c;
+  display:grid;place-items:center;text-align:center;position:relative;overflow:hidden
 }
-.drop.drag{border-color:#cfd1d0;background:#101112}
+.drop.drag{background:#101112}
 .upload-icon{
-  width:38px;
-  height:38px;
-  border:1px solid #292c2f;
-  border-radius:4px;
-  background:#111213;
-  display:grid;
-  place-items:center;
-  margin:0 auto 11px;
-  font-size:18px;
+  width:36px;height:36px;border:1px solid #292d2f;border-radius:3px;background:#111213;
+  display:grid;place-items:center;margin:0 auto 11px;font-size:17px
 }
-.drop h3{font-size:13px;font-weight:600;margin:0}
-.drop p{
-  max-width:420px;
-  margin:6px auto 13px;
-  color:#6f7477;
-  font-size:9px;
-  line-height:1.55;
-}
-.preview{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  background:#080808;
-  display:none;
-}
-.drop.has .preview{display:block}
-.drop.has .copy{display:none}
+.drop h3{font-size:12px;margin:0}.drop p{max-width:400px;margin:6px auto 12px;color:#6b7073;font-size:9px;line-height:1.5}
+.preview{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#080808;display:none}
+.drop.has .preview{display:block}.drop.has .copy{display:none}
 .filebar{
-  display:none;
-  position:absolute;
-  left:8px;
-  right:8px;
-  bottom:8px;
-  align-items:center;
-  gap:7px;
-  padding:6px 7px;
-  border:1px solid #282b2d;
-  border-radius:4px;
-  background:rgba(11,12,13,.94);
-  z-index:3;
+  display:none;position:absolute;left:8px;right:8px;bottom:8px;padding:6px 7px;border:1px solid #292c2e;
+  background:rgba(10,11,12,.94);align-items:center;gap:7px;z-index:3
 }
 .drop.has .filebar{display:flex}
-.filebar span{
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  color:#a5aaad;
-  font-size:9px;
+.filebar span{color:#a6aaac;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filebar button{margin-left:auto;height:24px;border:1px solid #303335;background:#111213;border-radius:2px;font-size:8px;padding:0 7px}
+.note-wrap{padding:10px}
+.note-wrap label{display:block;color:#616669;font-size:7px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.note-wrap textarea{
+  width:100%;min-height:56px;border:1px solid #202326;background:#090a0b;color:#d8d9d8;border-radius:3px;
+  outline:0;resize:vertical;padding:8px;font-size:9px;line-height:1.45
 }
-.filebar button{
-  margin-left:auto;
-  border:1px solid #303335;
-  background:#121314;
-  border-radius:3px;
-  height:25px;
-  padding:0 8px;
-  cursor:pointer;
-  font-size:9px;
-}
-.note-box{
-  margin-top:8px;
-  border:1px solid #202326;
-  border-radius:4px;
-  background:#0c0d0e;
-  padding:8px 9px;
-}
-.note-box label{
-  display:block;
-  color:#6d7275;
-  font-size:8px;
-  margin-bottom:5px;
-}
-.note-box textarea{
-  width:100%;
-  min-height:52px;
-  resize:vertical;
-  border:0;
-  outline:0;
-  background:transparent;
-  color:#d6d8d8;
-  line-height:1.45;
-  font-size:10px;
-}
-.note-box textarea::placeholder{color:#4d5255}
-.upload-actions{
-  display:flex;
-  justify-content:flex-end;
-  gap:6px;
-  margin-top:8px;
-}
-.tips{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:6px;
-  margin-top:10px;
-}
-.tip{
-  border:1px solid #1b1e20;
-  border-radius:4px;
-  background:#0a0b0c;
-  padding:9px;
-}
-.tip b{display:block;font-size:9px}
-.tip span{
-  display:block;
-  color:#5f6467;
-  font-size:8px;
-  line-height:1.4;
-  margin-top:4px;
-}
-
-/* loading */
-.loading{
-  position:fixed;
-  inset:0;
-  background:rgba(5,5,5,.80);
-  backdrop-filter:blur(6px);
-  z-index:100;
-  display:none;
-  place-items:center;
-}
-.loading.show{display:grid}
-.loadbox{
-  width:min(340px,90vw);
-  border:1px solid #292c2e;
-  border-radius:5px;
-  background:#0d0e0f;
-  padding:18px;
-  text-align:center;
-}
-.spinner{
-  width:26px;
-  height:26px;
-  border:2px solid #2b2e30;
-  border-top-color:#eee;
-  border-radius:50%;
-  animation:spin .8s linear infinite;
-  margin:0 auto 11px;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loadbox b{font-size:11px}
-.loadbox p{
-  margin:6px 0 0;
-  color:#696e71;
-  font-size:9px;
-  line-height:1.5;
-}
+.note-wrap textarea::placeholder{color:#4e5356}
+.analyze-actions{display:flex;justify-content:flex-end;gap:5px;margin-top:7px}
+.side-info{display:grid;gap:8px;align-content:start}
+.info-box{border:1px solid #1d2022;background:#0b0c0d;border-radius:4px;padding:12px}
+.info-box h3{margin:0 0 10px;font-size:9px}
+.info-row{border-top:1px solid #191c1e;padding:9px 0;display:flex;gap:8px}
+.info-row:first-of-type{border-top:0;padding-top:0}
+.info-row i{font-style:normal;color:#8e9396;width:16px}
+.info-row b{font-size:8px}.info-row p{margin:3px 0 0;color:#5f6467;font-size:8px;line-height:1.4}
 
 /* report */
-.report{display:none}
-.report.show{display:block}
-.report-head{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:10px;
-  min-height:38px;
+.report{display:none;margin-top:12px}.report.show{display:block}
+.report-head{display:flex;align-items:center;gap:12px;margin-bottom:9px}
+.backbtn{
+  width:29px;height:29px;border:1px solid #2b2e30;background:#0f1011;border-radius:3px;cursor:pointer
 }
-.report-title h2{
-  margin:0;
-  font-size:20px;
-  font-weight:600;
-  letter-spacing:-.035em;
-}
-.report-title p{
-  margin:3px 0 0;
-  color:#707578;
-  font-size:8px;
-}
+.report-title h2{margin:0;font-size:19px;letter-spacing:-.035em;font-weight:620}
+.report-title p{margin:3px 0 0;color:#676c6f;font-size:8px}
 .quality{
-  margin-left:auto;
-  height:26px;
-  border:1px solid #292d2f;
-  border-radius:4px;
-  padding:0 9px;
-  display:flex;
-  align-items:center;
-  color:#999da0;
-  font-size:8px;
+  margin-left:auto;height:25px;border:1px solid #2b2e30;border-radius:3px;padding:0 8px;display:flex;align-items:center;
+  color:#989c9f;font-size:8px
 }
+.grid-top{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(340px,.75fr);gap:7px}
+.card{border:1px solid #202326;border-radius:4px;background:#0b0c0d;overflow:hidden}
+.verdict{padding:14px}
+.verdict-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.verdict small{display:block;color:#606568;font-size:7px;letter-spacing:.08em;text-transform:uppercase}
+.verdict strong{display:block;margin-top:5px;font-size:34px;line-height:1;letter-spacing:-.05em}
+.verdict.buy strong{color:var(--green)}.verdict.sell strong{color:var(--red)}.verdict.wait strong{color:#ededeb}
+.confidence{height:25px;border:1px solid #2b2f31;border-radius:3px;padding:0 8px;display:flex;align-items:center;font-size:8px;color:#b9bdbe}
+.setup{margin-top:5px;color:#909598;font-size:9px}.summary{margin:10px 0 0;color:#a9adaf;font-size:9px;line-height:1.5}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:12px}
+.metric{border-top:1px solid #202326;padding:8px 2px 0;min-width:0}
+.metric span{display:block;color:#5f6467;font-size:7px;text-transform:uppercase;letter-spacing:.06em}
+.metric b{display:block;margin-top:5px;font-size:10px;overflow:hidden;text-overflow:ellipsis}.metric.tp b{color:var(--green)}.metric.sl b{color:var(--red)}
+.screen-card{min-height:250px;position:relative;background:#080909}.screen-card img{width:100%;height:100%;object-fit:contain;display:block}
+.screen-tag{position:absolute;left:6px;top:6px;background:rgba(9,10,10,.9);border:1px solid #25282a;border-radius:2px;padding:4px 6px;color:#8e9396;font-size:7px}
+.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+.section{padding:11px 12px}.section h3{font-size:9px;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #191c1e}.section h3 span{color:#5d6265;font-weight:500;margin-left:5px}
+.rows{display:grid}.row{min-height:28px;border-top:1px solid #181a1c;display:flex;gap:13px;padding:7px 0}.row:first-child{border-top:0;padding-top:0}
+.row label{color:#62676a;font-size:8px;flex:0 0 92px}.row p{margin:0;color:#b9bdbe;font-size:8px;line-height:1.45;flex:1}
+.bullets{list-style:none;margin:0;padding:0;display:grid;gap:6px}.bullets li{display:flex;gap:7px;color:#a1a6a8;font-size:8px;line-height:1.45}
+.bullets i{width:5px;height:5px;border-radius:50%;background:#7f8588;margin-top:4px;flex:0 0 auto}.bullets.positive i{background:#a7aaa8}.bullets.warning i{background:#b98a8e}
+.levels{display:grid;grid-template-columns:1fr 1fr;gap:6px}.levelbox{border:1px solid #1f2224;border-radius:3px;background:#090a0b;padding:8px}
+.levelbox span{display:block;color:#606568;font-size:7px;text-transform:uppercase;letter-spacing:.06em}
+.levelchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.chip{border:1px solid #2b2e30;border-radius:2px;padding:4px 6px;color:#c5c8c9;font-size:8px;background:#0d0e0f}
+.scenario{border-top:1px solid #191c1e;padding:7px 0}.scenario:first-of-type{border-top:0;padding-top:0}.scenario b{font-size:8px}.scenario p{margin:4px 0 0;color:#878c8f;font-size:8px;line-height:1.45}
+.green{color:var(--green)!important}.red{color:var(--red)!important}
+.footer-note{margin-top:7px;color:#4f5457;font-size:7px;text-align:center}
 
-.grid-top{
-  display:grid;
-  grid-template-columns:minmax(0,1.25fr) minmax(340px,.75fr);
-  gap:8px;
-}
-.card{
-  border:1px solid #232629;
-  border-radius:5px;
-  background:#0c0d0e;
-  overflow:hidden;
-}
-.verdict{padding:15px}
-.verdict-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:12px;
-}
-.verdict small{
-  display:block;
-  color:#64696c;
-  font-size:8px;
-  letter-spacing:.10em;
-  text-transform:uppercase;
-}
-.verdict strong{
-  display:block;
-  margin-top:6px;
-  font-size:36px;
-  font-weight:650;
-  line-height:1;
-  letter-spacing:-.05em;
-}
-.verdict.buy strong{color:var(--green)}
-.verdict.sell strong{color:var(--red)}
-.verdict.wait strong{color:#ededeb}
-.confidence{
-  height:28px;
-  border:1px solid #303438;
-  border-radius:4px;
-  padding:0 9px;
-  display:flex;
-  align-items:center;
-  font-size:8px;
-  color:#bcc0c1;
-  background:#0b0c0d;
-}
-.setup{
-  margin-top:6px;
-  color:#979b9d;
-  font-size:10px;
-}
-.summary{
-  margin:12px 0 0;
-  color:#aeb2b4;
-  font-size:10px;
-  line-height:1.55;
-  max-width:820px;
-}
+/* history */
+.history-head{display:flex;align-items:center;margin-bottom:12px}
+.history-head h2{margin:0;font-size:20px;letter-spacing:-.035em}.history-head p{margin:4px 0 0;color:#686d70;font-size:8px}
+.history-head .btn{margin-left:auto}
+.history-list{border:1px solid #1d2022;background:#0b0c0d;border-radius:4px;overflow:hidden}
 
-/* game plan metrics */
-.metrics{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:5px;
-  margin-top:13px;
-}
-.metric{
-  border:1px solid #202326;
-  border-radius:4px;
-  background:#0a0b0c;
-  padding:9px;
-  min-width:0;
-}
-.metric span{
-  display:block;
-  color:#606568;
-  font-size:7px;
-  text-transform:uppercase;
-  letter-spacing:.07em;
-}
-.metric b{
-  display:block;
-  margin-top:5px;
-  font-size:11px;
-  font-weight:600;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.metric.tp b{color:var(--green)}
-.metric.sl b{color:var(--red)}
+/* loading/toast */
+.loading{position:fixed;inset:0;background:rgba(5,5,5,.82);backdrop-filter:blur(5px);z-index:100;display:none;place-items:center}.loading.show{display:grid}
+.loadbox{width:min(330px,90vw);border:1px solid #292c2e;border-radius:4px;background:#0d0e0f;padding:17px;text-align:center}
+.spinner{width:24px;height:24px;border:2px solid #2b2e30;border-top-color:#eee;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}.loadbox b{font-size:10px}.loadbox p{margin:5px 0 0;color:#686d70;font-size:8px;line-height:1.45}
+.toast{position:fixed;right:14px;bottom:14px;z-index:120;border:1px solid #2c3032;border-radius:3px;background:#111213;color:#d9dbdb;padding:8px 10px;opacity:0;transform:translateY(5px);transition:.14s;pointer-events:none;font-size:8px}
+.toast.show{opacity:1;transform:none}.toast.error{border-color:rgba(224,109,115,.45)}
 
-/* screenshot */
-.screen-card{
-  height:100%;
-  min-height:250px;
-  position:relative;
-  background:#080909;
-}
-.screen-card img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  display:block;
-}
-.screen-tag{
-  position:absolute;
-  left:7px;
-  top:7px;
-  background:rgba(9,10,10,.90);
-  border:1px solid #26292b;
-  border-radius:3px;
-  padding:4px 6px;
-  font-size:8px;
-  color:#8f9497;
-}
-
-/* report sections */
-.section-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-top:8px;
-}
-.section{padding:12px 13px}
-.section h3{
-  font-size:10px;
-  font-weight:600;
-  margin:0 0 10px;
-  padding-bottom:8px;
-  border-bottom:1px solid #1b1e20;
-}
-.section h3 span{
-  color:#5e6366;
-  font-weight:500;
-  margin-left:5px;
-}
-.rows{display:grid;gap:0}
-.row{
-  min-height:30px;
-  border-top:1px solid #181a1c;
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:15px;
-  padding:7px 0;
-}
-.row:first-child{border-top:0;padding-top:0}
-.row label{
-  color:#666b6e;
-  font-size:8px;
-  flex:0 0 94px;
-}
-.row p{
-  margin:0;
-  color:#bfc2c3;
-  font-size:9px;
-  line-height:1.45;
-  text-align:left;
-  flex:1;
-}
-.bullets{
-  list-style:none;
-  margin:0;
-  padding:0;
-  display:grid;
-  gap:6px;
-}
-.bullets li{
-  display:flex;
-  gap:7px;
-  color:#a4a8aa;
-  font-size:9px;
-  line-height:1.45;
-}
-.bullets i{
-  width:5px;
-  height:5px;
-  border-radius:50%;
-  background:#858a8d;
-  margin-top:4px;
-  flex:0 0 auto;
-}
-.bullets.positive i{background:#a6aaa8}
-.bullets.warning i{background:#b98d90}
-
-.levels{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:7px;
-}
-.levelbox{
-  border:1px solid #1f2224;
-  border-radius:4px;
-  background:#0a0b0c;
-  padding:9px;
-}
-.levelbox span{
-  display:block;
-  color:#62676a;
-  font-size:7px;
-  text-transform:uppercase;
-  letter-spacing:.07em;
-}
-.levelchips{
-  display:flex;
-  flex-wrap:wrap;
-  gap:5px;
-  margin-top:7px;
-}
-.chip{
-  border:1px solid #2c3032;
-  border-radius:3px;
-  padding:4px 6px;
-  color:#c7c9ca;
-  font-size:8px;
-  background:#0d0e0f;
-}
-.scenario{
-  border-top:1px solid #191c1e;
-  padding:8px 0;
-}
-.scenario:first-of-type{border-top:0;padding-top:0}
-.scenario b{font-size:8px}
-.scenario p{
-  margin:4px 0 0;
-  color:#898e91;
-  font-size:9px;
-  line-height:1.45;
-}
-.green{color:var(--green)!important}
-.red{color:var(--red)!important}
-
-.footer-note{
-  margin-top:8px;
-  color:#4f5457;
-  font-size:8px;
-  line-height:1.45;
-  text-align:center;
-}
-
-/* toast */
-.toast{
-  position:fixed;
-  right:14px;
-  bottom:14px;
-  z-index:120;
-  max-width:360px;
-  border:1px solid #2c3032;
-  border-radius:4px;
-  background:#111213;
-  color:#d9dbdb;
-  padding:9px 11px;
-  opacity:0;
-  transform:translateY(6px);
-  transition:.16s;
-  pointer-events:none;
-  font-size:9px;
-}
-.toast.show{opacity:1;transform:none}
-.toast.error{border-color:rgba(233,108,114,.42)}
-
-@media(max-width:980px){
-  .grid-top,.section-grid{grid-template-columns:1fr}
-  .metrics{grid-template-columns:1fr 1fr}
-  .screen-card{min-height:330px}
+@media(max-width:1050px){
+  .dashboard-grid,.analyze-layout,.grid-top,.section-grid{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}.screen-card{min-height:330px}
 }
 @media(max-width:760px){
-  :root{--side:0}
-  .sidebar{display:none}
-  .shell{margin-left:0}
-  .main{padding:12px}
-  .hero-title{font-size:24px}
-  .tips{grid-template-columns:1fr}
-  .report-head{align-items:center}
-  .metrics{grid-template-columns:1fr 1fr}
+  :root{--sidew:0px}.sidebar{display:none}.shell{margin-left:0}.main{padding:12px}
+  .stats{grid-template-columns:1fr 1fr}.latest-metrics,.metrics{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -697,76 +258,155 @@ button{color:inherit}
 <div class="app">
 <aside class="sidebar">
   <div class="brand"><div class="logo"></div><div><div class="word">Quant</div><div class="tag">Chart intelligence</div></div></div>
-  <div class="side-main">
-    <button class="sidebtn active" id="studioNav"><span>✦</span>Studio</button>
-    <button class="sidebtn" id="newNav"><span>＋</span>New analysis</button>
-  </div>
+  <nav class="nav">
+    <div class="nav-label">Workspace</div>
+    <button class="navbtn active" data-tab="dashboard"><span class="navico">⌂</span>Dashboard</button>
+    <button class="navbtn" data-tab="analyze"><span class="navico">＋</span>Analyze</button>
+    <button class="navbtn" data-tab="history"><span class="navico">≡</span>History <span class="navcount" id="historyCount">0</span></button>
+  </nav>
   <div class="sidefill"></div>
-  <div class="status"><div class="status-row"><i class="status-dot"></i>Analysis engine ready</div><small>Screenshot analysis only. Quant reads only the chart you upload.</small></div>
+  <div class="sidefoot"><div class="engine"><i class="engine-dot"></i>Analysis engine ready</div><p>Quant reads only the chart you upload. Dashboard stats come from your completed analyses.</p></div>
 </aside>
 
 <main class="shell">
-<header class="top">
-  <div><h1>Chart Studio</h1><p>Upload a chart and get a complete technical breakdown.</p></div>
-  <div class="top-actions"><button class="btn dark hidden" id="topNew">New analysis</button></div>
+<header class="topbar">
+  <div><div class="page-title" id="pageTitle">Dashboard</div><div class="page-sub" id="pageSub">Your Quant workspace.</div></div>
+  <div class="top-actions"><button class="btn primary" id="topAnalyze">New analysis</button></div>
 </header>
 
 <div class="main">
-<section class="upload-view" id="uploadView">
-  <div class="upload-wrap">
-    <div class="eyebrow">Quant Studio</div>
-    <h1 class="hero-title">Drop a chart. Get the full plan.</h1>
-    <p class="hero-sub">Quant reads the visible chart structure, levels, momentum and indicators, then explains the setup, what confirms it, what invalidates it, and when doing nothing is the better choice.</p>
-    <div class="drop" id="dropzone">
-      <img class="preview" id="preview" alt="Chart preview">
-      <div class="copy">
-        <div class="upload-icon">↥</div>
-        <h3>Upload your TradingView screenshot</h3>
-        <p>Drop, paste, or choose a PNG/JPG/WEBP chart. Keep the ticker, timeframe, candles and price scale visible for the best result.</p>
-        <button class="btn white" id="chooseFile">Choose screenshot</button>
-      </div>
-      <div class="filebar"><span id="fileName">chart.png</span><button id="replaceFile">Replace</button></div>
+  <section class="view active" id="dashboardView">
+    <div class="dash-head">
+      <div><h1 class="greeting" id="greeting">Hello.</h1><p class="greeting-sub">Here’s what’s happened across your Quant analyses.</p></div>
+      <button class="btn primary" id="dashAnalyze">Analyze a chart</button>
     </div>
-    <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
-    <div class="note-box"><label>OPTIONAL NOTE</label><textarea id="note" maxlength="500" placeholder="Example: Focus on a possible breakout, or tell Quant what indicator you want checked."></textarea></div>
-    <div class="upload-actions"><button class="btn dark" id="removeFile" disabled>Clear</button><button class="btn white" id="analyzeBtn" disabled>Analyze chart →</button></div>
-    <div class="tips"><div class="tip"><b>Show the timeframe</b><span>Keep 5m, 1h, 1D, etc. visible.</span></div><div class="tip"><b>Keep price scale visible</b><span>Quant uses visible levels only.</span></div><div class="tip"><b>Don't crop context</b><span>More structure usually means a better read.</span></div></div>
-  </div>
-</section>
 
-<section class="report" id="report">
-  <div class="report-head">
-    <div class="report-title"><h2 id="reportAsset">Chart analysis</h2><p id="reportMeta">—</p></div>
-    <div class="quality" id="quality">Image quality: —</div>
-  </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Total analyses</div><div class="stat-value" id="statTotal">0</div><div class="stat-foot">Saved in this browser</div></div>
+      <div class="stat"><div class="stat-label">Directional setups</div><div class="stat-value" id="statDirectional">0</div><div class="stat-foot">BUY + SELL verdicts</div></div>
+      <div class="stat"><div class="stat-label">No-trade calls</div><div class="stat-value" id="statWait">0</div><div class="stat-foot">DO NOTHING verdicts</div></div>
+      <div class="stat"><div class="stat-label">Avg. confidence</div><div class="stat-value" id="statConfidence">—</div><div class="stat-foot">Across completed analyses</div></div>
+    </div>
 
-  <div class="grid-top">
-    <div class="card verdict wait" id="verdict">
-      <div class="verdict-top"><div><small>Quant verdict</small><strong id="signal">—</strong><div class="setup" id="setup">—</div></div><div class="confidence" id="confidence">—</div></div>
-      <p class="summary" id="summary">—</p>
-      <div class="metrics">
-        <div class="metric"><span>Entry zone</span><b id="entry">—</b></div>
-        <div class="metric tp"><span>Take profit</span><b id="tp">—</b></div>
-        <div class="metric sl"><span>Stop loss</span><b id="sl">—</b></div>
-        <div class="metric"><span>Risk / reward</span><b id="rr">—</b></div>
+    <div class="dashboard-grid">
+      <div class="panel">
+        <div class="panel-head"><b>Latest analysis</b><span id="latestTime">No analyses yet</span></div>
+        <div class="latest" id="latestBox">
+          <div class="latest-empty"><div><strong>No chart analyzed yet</strong><p>Your latest verdict and trade plan will appear here.</p><button class="btn primary" id="emptyAnalyze">Analyze your first chart</button></div></div>
+        </div>
+      </div>
+
+      <div class="panel quick">
+        <h3>Start here</h3>
+        <div class="quick-grid">
+          <div class="quick-item"><div class="quick-num">01</div><div><b>Upload the chart</b><p>Keep ticker, timeframe, candles and price scale visible.</p></div></div>
+          <div class="quick-item"><div class="quick-num">02</div><div><b>Read the structure</b><p>Quant checks visible trend, levels, momentum and indicators.</p></div></div>
+          <div class="quick-item"><div class="quick-num">03</div><div><b>Get the plan</b><p>Verdict, entry zone, targets, invalidation and scenarios.</p></div></div>
+        </div>
       </div>
     </div>
-    <div class="card screen-card"><img id="reportImage" alt="Analyzed chart"><div class="screen-tag">Uploaded chart</div></div>
-  </div>
 
-  <div class="section-grid">
-    <div class="card section"><h3>Why this verdict <span>visible evidence</span></h3><ul class="bullets positive" id="reasons"></ul></div>
-    <div class="card section"><h3>What to do <span>execution plan</span></h3><div class="rows"><div class="row"><label>Right now</label><p id="planNow">—</p></div><div class="row"><label>Confirmation</label><p id="planConfirm">—</p></div><div class="row"><label>Invalidation</label><p id="planInvalid">—</p></div><div class="row"><label>Management</label><p id="planManage">—</p></div></div></div>
+    <div class="panel recent">
+      <div class="panel-head"><b>Recent analyses</b><span>Local history</span></div>
+      <table class="table">
+        <thead><tr><th>Symbol</th><th>Market</th><th>Timeframe</th><th>Verdict</th><th>Confidence</th><th>Analyzed</th></tr></thead>
+        <tbody id="recentBody"><tr><td colspan="6" class="empty-row">No analyses yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
 
-    <div class="card section"><h3>Market structure</h3><div class="rows"><div class="row"><label>Trend</label><p id="trend">—</p></div><div class="row"><label>Momentum</label><p id="momentum">—</p></div><div class="row"><label>Volume</label><p id="volume">—</p></div><div class="row"><label>Pattern</label><p id="pattern">—</p></div><div class="row"><label>Support context</label><p id="supportContext">—</p></div><div class="row"><label>Resistance context</label><p id="resistanceContext">—</p></div></div></div>
-    <div class="card section"><h3>Key levels</h3><div class="levels"><div class="levelbox"><span>Support</span><div class="levelchips" id="supports"></div></div><div class="levelbox"><span>Resistance</span><div class="levelchips" id="resistances"></div></div></div><h3 style="margin-top:15px">Visible indicators</h3><div class="levelchips" id="indicators"></div></div>
+  <section class="view" id="analyzeView">
+    <div class="analyze-head">
+      <div><h2>Analyze chart</h2><p>Upload a screenshot and get a complete technical breakdown.</p></div>
+    </div>
 
-    <div class="card section"><h3>Scenario map</h3><div class="scenario"><b class="green">Bullish case</b><p id="bullCase">—</p></div><div class="scenario"><b class="red">Bearish case</b><p id="bearCase">—</p></div><div class="scenario"><b>Neutral / no-trade case</b><p id="neutralCase">—</p></div></div>
-    <div class="card section"><h3>What could change the signal</h3><ul class="bullets" id="changes"></ul><h3 style="margin-top:16px">Warnings</h3><ul class="bullets warning" id="warnings"></ul></div>
-  </div>
+    <div id="analyzeWorkspace">
+      <div class="analyze-layout">
+        <div class="workspace">
+          <div class="workspace-head"><b>Chart screenshot</b><span>PNG · JPG · WEBP · max 12 MB</span></div>
+          <div class="drop" id="dropzone">
+            <img class="preview" id="preview" alt="Chart preview">
+            <div class="copy">
+              <div class="upload-icon">↥</div>
+              <h3>Upload your chart screenshot</h3>
+              <p>Drop, paste, or choose a chart. Keep the ticker, timeframe, candles and price scale visible for the best result.</p>
+              <button class="btn primary" id="chooseFile">Choose screenshot</button>
+            </div>
+            <div class="filebar"><span id="fileName">chart.png</span><button id="replaceFile">Replace</button></div>
+          </div>
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          <div class="note-wrap">
+            <label>Optional note</label>
+            <textarea id="note" maxlength="500" placeholder="Example: Focus on the breakout, or check whether the rebound confirms a reversal."></textarea>
+            <div class="analyze-actions"><button class="btn" id="removeFile" disabled>Clear</button><button class="btn primary" id="analyzeBtn" disabled>Analyze chart →</button></div>
+          </div>
+        </div>
 
-  <div class="footer-note">Quant analyzes only what is visible in your screenshot. The output is technical-analysis information, not a guarantee of profit or personalized financial advice.</div>
-</section>
+        <div class="side-info">
+          <div class="info-box">
+            <h3>For the clearest read</h3>
+            <div class="info-row"><i>01</i><div><b>Show the timeframe</b><p>Keep 5m, 1h, 1D, etc. visible.</p></div></div>
+            <div class="info-row"><i>02</i><div><b>Keep the price scale</b><p>Visible prices help Quant place levels correctly.</p></div></div>
+            <div class="info-row"><i>03</i><div><b>Keep context</b><p>Avoid cropping away the structure leading into the setup.</p></div></div>
+          </div>
+          <div class="info-box">
+            <h3>What you’ll get</h3>
+            <div class="info-row"><i>•</i><div><b>Verdict</b><p>BUY, SELL, or DO NOTHING.</p></div></div>
+            <div class="info-row"><i>•</i><div><b>Trade plan</b><p>Entry, targets, stop, confirmation and invalidation.</p></div></div>
+            <div class="info-row"><i>•</i><div><b>Scenario map</b><p>Bullish, bearish and neutral paths from the visible chart.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="report" id="report">
+      <div class="report-head">
+        <button class="backbtn" id="backToUpload">←</button>
+        <div class="report-title"><h2 id="reportAsset">Chart analysis</h2><p id="reportMeta">—</p></div>
+        <div class="quality" id="quality">Image quality: —</div>
+      </div>
+
+      <div class="grid-top">
+        <div class="card verdict wait" id="verdict">
+          <div class="verdict-top"><div><small>Quant verdict</small><strong id="signal">—</strong><div class="setup" id="setup">—</div></div><div class="confidence" id="confidence">—</div></div>
+          <p class="summary" id="summary">—</p>
+          <div class="metrics">
+            <div class="metric"><span>Entry zone</span><b id="entry">—</b></div>
+            <div class="metric tp"><span>Take profit</span><b id="tp">—</b></div>
+            <div class="metric sl"><span>Stop loss</span><b id="sl">—</b></div>
+            <div class="metric"><span>Risk / reward</span><b id="rr">—</b></div>
+          </div>
+        </div>
+        <div class="card screen-card"><img id="reportImage" alt="Analyzed chart"><div class="screen-tag">Uploaded chart</div></div>
+      </div>
+
+      <div class="section-grid">
+        <div class="card section"><h3>Why this verdict <span>visible evidence</span></h3><ul class="bullets positive" id="reasons"></ul></div>
+        <div class="card section"><h3>What to do <span>execution plan</span></h3><div class="rows"><div class="row"><label>Right now</label><p id="planNow">—</p></div><div class="row"><label>Confirmation</label><p id="planConfirm">—</p></div><div class="row"><label>Invalidation</label><p id="planInvalid">—</p></div><div class="row"><label>Management</label><p id="planManage">—</p></div></div></div>
+
+        <div class="card section"><h3>Market structure</h3><div class="rows"><div class="row"><label>Trend</label><p id="trend">—</p></div><div class="row"><label>Momentum</label><p id="momentum">—</p></div><div class="row"><label>Volume</label><p id="volume">—</p></div><div class="row"><label>Pattern</label><p id="pattern">—</p></div><div class="row"><label>Support context</label><p id="supportContext">—</p></div><div class="row"><label>Resistance context</label><p id="resistanceContext">—</p></div></div></div>
+        <div class="card section"><h3>Key levels</h3><div class="levels"><div class="levelbox"><span>Support</span><div class="levelchips" id="supports"></div></div><div class="levelbox"><span>Resistance</span><div class="levelchips" id="resistances"></div></div></div><h3 style="margin-top:13px">Visible indicators</h3><div class="levelchips" id="indicators"></div></div>
+
+        <div class="card section"><h3>Scenario map</h3><div class="scenario"><b class="green">Bullish case</b><p id="bullCase">—</p></div><div class="scenario"><b class="red">Bearish case</b><p id="bearCase">—</p></div><div class="scenario"><b>Neutral / no-trade case</b><p id="neutralCase">—</p></div></div>
+        <div class="card section"><h3>What could change the signal</h3><ul class="bullets" id="changes"></ul><h3 style="margin-top:13px">Warnings</h3><ul class="bullets warning" id="warnings"></ul></div>
+      </div>
+
+      <div class="footer-note">Quant analyzes only what is visible in your screenshot. The output is technical-analysis information, not a guarantee of profit or personalized financial advice.</div>
+    </section>
+  </section>
+
+  <section class="view" id="historyView">
+    <div class="history-head">
+      <div><h2>Analysis history</h2><p>Your completed analyses saved in this browser.</p></div>
+      <button class="btn" id="clearHistory">Clear history</button>
+    </div>
+    <div class="history-list">
+      <table class="table">
+        <thead><tr><th>Symbol</th><th>Name</th><th>Market</th><th>Timeframe</th><th>Verdict</th><th>Confidence</th><th>Analyzed</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="7" class="empty-row">No analyses yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
 </div>
 </main>
 </div>
@@ -776,34 +416,188 @@ button{color:inherit}
 
 <script>
 (()=>{
-const $=id=>document.getElementById(id);let file=null,objectUrl=null,lastData=null;
-function toast(msg,error=false){const t=$("toast");t.textContent=msg;t.className="toast show"+(error?" error":"");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),3200)}
+const $=id=>document.getElementById(id);
+let file=null,objectUrl=null,lastData=null;
+const HISTORY_KEY="quant_history_v1";
+let history=loadHistory();
+
+function loadHistory(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");
+    return Array.isArray(parsed)?parsed:[];
+  }catch{return[]}
+}
+function persistHistory(){
+  try{localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,50)))}catch{}
+}
+function toast(msg,error=false){
+  const t=$("toast");t.textContent=msg;t.className="toast show"+(error?" error":"");
+  clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),3000)
+}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function fmt(v){const n=Number(v);if(!Number.isFinite(n)||n===0)return"—";return n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:4})}
+function fmt(v){
+  const n=Number(v);if(!Number.isFinite(n)||n===0)return"—";
+  return n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:4})
+}
 function zone(a,b){if(!a&&!b)return"—";return Number(a)===Number(b)?fmt(a):fmt(a)+" – "+fmt(b)}
-function setFile(f){if(!f)return;if(!["image/png","image/jpeg","image/webp"].includes(f.type))return toast("Use PNG, JPG or WEBP.",true);if(f.size>12*1024*1024)return toast("Image is larger than 12 MB.",true);file=f;if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(f);$("preview").src=objectUrl;$("fileName").textContent=f.name||"pasted-chart.png";$("dropzone").classList.add("has");$("analyzeBtn").disabled=false;$("removeFile").disabled=false}
-function clearFile(){file=null;$("fileInput").value="";$("dropzone").classList.remove("has");$("preview").removeAttribute("src");$("analyzeBtn").disabled=true;$("removeFile").disabled=true;if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null}
-function newAnalysis(){lastData=null;$("report").classList.remove("show");$("uploadView").classList.remove("hidden");$("topNew").classList.add("hidden");clearFile();$("note").value="";window.scrollTo({top:0,behavior:"smooth"})}
-function chips(id,arr){$(id).innerHTML=(arr&&arr.length?arr:["None clearly visible"]).map(x=>'<span class="chip">'+esc(typeof x==="number"?fmt(x):x)+'</span>').join("")}
-function bullets(id,arr){$(id).innerHTML=(arr&&arr.length?arr:["No additional note."]).map(x=>'<li><i></i><span>'+esc(x)+'</span></li>').join("")}
-function render(d){
+function when(ts){
+  const d=new Date(ts),now=new Date(),diff=now-d;
+  if(diff<60000)return"Just now";
+  if(diff<3600000)return Math.floor(diff/60000)+"m ago";
+  if(diff<86400000)return Math.floor(diff/3600000)+"h ago";
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})
+}
+function greeting(){
+  const h=new Date().getHours();
+  $("greeting").textContent=h<12?"Good morning.":h<18?"Good afternoon.":"Good evening."
+}
+function setTab(tab){
+  document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  $(tab+"View").classList.add("active");
+  const titles={
+    dashboard:["Dashboard","Your Quant workspace."],
+    analyze:["Analyze","Upload a chart and get a complete technical breakdown."],
+    history:["History","Your completed analyses."]
+  };
+  $("pageTitle").textContent=titles[tab][0];$("pageSub").textContent=titles[tab][1];
+  $("topAnalyze").classList.toggle("hidden",tab==="analyze");
+  if(tab==="dashboard")renderDashboard();
+  if(tab==="history")renderHistory();
+  window.scrollTo({top:0,behavior:"smooth"})
+}
+function setFile(f){
+  if(!f)return;
+  if(!["image/png","image/jpeg","image/webp"].includes(f.type))return toast("Use PNG, JPG or WEBP.",true);
+  if(f.size>12*1024*1024)return toast("Image is larger than 12 MB.",true);
+  file=f;if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(f);
+  $("preview").src=objectUrl;$("fileName").textContent=f.name||"pasted-chart.png";
+  $("dropzone").classList.add("has");$("analyzeBtn").disabled=false;$("removeFile").disabled=false
+}
+function clearFile(){
+  file=null;$("fileInput").value="";$("dropzone").classList.remove("has");$("preview").removeAttribute("src");
+  $("analyzeBtn").disabled=true;$("removeFile").disabled=true;if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null
+}
+function resetAnalyze(){
+  lastData=null;$("report").classList.remove("show");$("analyzeWorkspace").classList.remove("hidden");
+  clearFile();$("note").value=""
+}
+function chips(id,arr){
+  $(id).innerHTML=(arr&&arr.length?arr:["None clearly visible"]).map(x=>'<span class="chip">'+esc(typeof x==="number"?fmt(x):x)+'</span>').join("")
+}
+function bullets(id,arr){
+  $(id).innerHTML=(arr&&arr.length?arr:["No additional note."]).map(x=>'<li><i></i><span>'+esc(x)+'</span></li>').join("")
+}
+function saveAnalysis(a){
+  const item={
+    id:Date.now(),
+    time:new Date().toISOString(),
+    symbol:a.instrument?.symbol||"—",
+    name:a.instrument?.name||a.instrument?.symbol||"Chart",
+    market:a.instrument?.market||"unknown",
+    timeframe:a.instrument?.timeframe||"—",
+    signal:a.signal||"DO NOTHING",
+    confidence:Number(a.confidence)||0,
+    summary:a.summary||"",
+    entryLow:Number(a.entry?.low)||0,
+    entryHigh:Number(a.entry?.high)||0,
+    tp:Array.isArray(a.takeProfit)?a.takeProfit.filter(Boolean):[],
+    stop:Number(a.stopLoss)||0,
+    rr:Number(a.riskReward)||0
+  };
+  history.unshift(item);history=history.slice(0,50);persistHistory();renderDashboard();renderHistory()
+}
+function renderDashboard(){
+  $("historyCount").textContent=history.length;
+  $("statTotal").textContent=history.length;
+  const directional=history.filter(x=>x.signal==="BUY"||x.signal==="SELL").length;
+  const wait=history.filter(x=>x.signal==="DO NOTHING").length;
+  $("statDirectional").textContent=directional;
+  $("statWait").textContent=wait;
+  $("statConfidence").textContent=history.length?Math.round(history.reduce((s,x)=>s+(x.confidence||0),0)/history.length)+"%":"—";
+
+  if(!history.length){
+    $("latestTime").textContent="No analyses yet";
+    $("latestBox").innerHTML='<div class="latest-empty"><div><strong>No chart analyzed yet</strong><p>Your latest verdict and trade plan will appear here.</p><button class="btn primary" id="emptyAnalyze">Analyze your first chart</button></div></div>';
+    $("emptyAnalyze").onclick=()=>setTab("analyze");
+    $("recentBody").innerHTML='<tr><td colspan="6" class="empty-row">No analyses yet.</td></tr>';
+    return;
+  }
+
+  const x=history[0],cls=x.signal==="BUY"?"buy":x.signal==="SELL"?"sell":"wait";
+  $("latestTime").textContent=when(x.time);
+  $("latestBox").innerHTML=
+    '<div class="latest-top"><div><div class="latest-symbol">'+esc(x.name)+' · '+esc(x.symbol)+'</div><div class="latest-meta">'+esc(x.market)+' · '+esc(x.timeframe)+'</div></div><div class="badge">'+x.confidence+'% confidence</div></div>'+
+    '<div class="latest-signal '+cls+'">'+esc(x.signal)+'</div>'+
+    '<p class="latest-summary">'+esc(x.summary||"No summary available.")+'</p>'+
+    '<div class="latest-metrics">'+
+      '<div class="mini-metric"><span>Entry</span><b>'+zone(x.entryLow,x.entryHigh)+'</b></div>'+
+      '<div class="mini-metric"><span>Target</span><b>'+((x.tp||[]).length?fmt(x.tp[0]):"—")+'</b></div>'+
+      '<div class="mini-metric"><span>Stop</span><b>'+fmt(x.stop)+'</b></div>'+
+      '<div class="mini-metric"><span>Risk / reward</span><b>'+(x.rr?"1 : "+x.rr.toFixed(2):"—")+'</b></div>'+
+    '</div>';
+
+  $("recentBody").innerHTML=history.slice(0,6).map(row=>
+    '<tr><td>'+esc(row.symbol)+'</td><td>'+esc(row.market)+'</td><td>'+esc(row.timeframe)+'</td><td class="signal-text '+(row.signal==="BUY"?"buy":row.signal==="SELL"?"sell":"wait")+'">'+esc(row.signal)+'</td><td>'+row.confidence+'%</td><td>'+when(row.time)+'</td></tr>'
+  ).join("");
+}
+function renderHistory(){
+  $("historyCount").textContent=history.length;
+  if(!history.length){
+    $("historyBody").innerHTML='<tr><td colspan="7" class="empty-row">No analyses yet.</td></tr>';
+    return;
+  }
+  $("historyBody").innerHTML=history.map(row=>
+    '<tr><td>'+esc(row.symbol)+'</td><td>'+esc(row.name)+'</td><td>'+esc(row.market)+'</td><td>'+esc(row.timeframe)+'</td><td class="signal-text '+(row.signal==="BUY"?"buy":row.signal==="SELL"?"sell":"wait")+'">'+esc(row.signal)+'</td><td>'+row.confidence+'%</td><td>'+when(row.time)+'</td></tr>'
+  ).join("")
+}
+function renderResult(d){
   const a=d.analysis,cls=a.signal==="BUY"?"buy":a.signal==="SELL"?"sell":"wait";
-  $("verdict").className="card verdict "+cls;$("signal").textContent=a.signal;$("setup").textContent=a.setup||"—";$("confidence").textContent=(a.confidence||0)+"% setup confidence";$("summary").textContent=a.summary||"—";
+  $("verdict").className="card verdict "+cls;
+  $("signal").textContent=a.signal;$("setup").textContent=a.setup||"—";$("confidence").textContent=(a.confidence||0)+"% setup confidence";$("summary").textContent=a.summary||"—";
   $("entry").textContent=zone(a.entry?.low,a.entry?.high);$("tp").textContent=(a.takeProfit||[]).filter(Boolean).map(fmt).join(" / ")||"—";$("sl").textContent=fmt(a.stopLoss);$("rr").textContent=a.riskReward?"1 : "+Number(a.riskReward).toFixed(2):"—";
   $("reportAsset").textContent=(a.instrument?.name||a.instrument?.symbol||"Detected chart")+" · "+(a.instrument?.symbol||"");
   $("reportMeta").textContent=[a.instrument?.market,a.instrument?.exchange,a.instrument?.timeframe].filter(Boolean).join(" · ");
-  $("quality").textContent="Image quality: "+(a.imageQuality||"unknown");$("reportImage").src=objectUrl||$("preview").src;
+  $("quality").textContent="Image quality: "+(a.imageQuality||"unknown");
+  $("reportImage").src=objectUrl||$("preview").src;
   bullets("reasons",a.reasons);
   $("planNow").textContent=a.tradePlan?.actionNow||"—";$("planConfirm").textContent=a.tradePlan?.confirmation||"—";$("planInvalid").textContent=a.tradePlan?.invalidation||"—";$("planManage").textContent=a.tradePlan?.management||"—";
   $("trend").textContent=(a.trend||"—")+" — "+(a.marketStructure?.trendDescription||"");$("momentum").textContent=a.momentum||"—";$("volume").textContent=a.volume||"—";$("pattern").textContent=a.marketStructure?.pattern||"—";$("supportContext").textContent=a.marketStructure?.supportContext||"—";$("resistanceContext").textContent=a.marketStructure?.resistanceContext||"—";
   chips("supports",a.keyLevels?.support);chips("resistances",a.keyLevels?.resistance);chips("indicators",a.visibleIndicators);
   $("bullCase").textContent=a.scenarios?.bullish||"—";$("bearCase").textContent=a.scenarios?.bearish||"—";$("neutralCase").textContent=a.scenarios?.neutral||"—";
   bullets("changes",a.whatChangesSignal);bullets("warnings",a.warnings);
-  $("uploadView").classList.add("hidden");$("report").classList.add("show");$("topNew").classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"})
+  $("analyzeWorkspace").classList.add("hidden");$("report").classList.add("show");
+  saveAnalysis(a);window.scrollTo({top:0,behavior:"smooth"})
 }
-$("chooseFile").onclick=()=> $("fileInput").click();$("replaceFile").onclick=()=> $("fileInput").click();$("fileInput").onchange=()=>setFile($("fileInput").files[0]);$("removeFile").onclick=clearFile;$("newNav").onclick=newAnalysis;$("topNew").onclick=newAnalysis;$("studioNav").onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
-["dragenter","dragover"].forEach(ev=>$("dropzone").addEventListener(ev,e=>{e.preventDefault();$("dropzone").classList.add("drag")}));["dragleave","drop"].forEach(ev=>$("dropzone").addEventListener(ev,e=>{e.preventDefault();$("dropzone").classList.remove("drag")}));$("dropzone").addEventListener("drop",e=>setFile(e.dataTransfer.files[0]));document.addEventListener("paste",e=>{const item=Array.from(e.clipboardData?.items||[]).find(x=>x.type.startsWith("image/"));if(item)setFile(item.getAsFile())});
-$("analyzeBtn").onclick=async()=>{if(!file)return;$("loading").classList.add("show");try{const fd=new FormData();fd.append("chart",file,file.name||"chart.png");const note=$("note").value.trim();if(note)fd.append("note",note);const res=await fetch("/api/analyze",{method:"POST",body:fd});const d=await res.json().catch(()=>({}));if(!res.ok)throw new Error(d.message||"Analysis failed");lastData=d;render(d);toast("Analysis complete · "+d.analysis.signal)}catch(e){toast(e.message||"Analysis failed",true)}finally{$("loading").classList.remove("show")}};
+
+document.querySelectorAll(".navbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+["topAnalyze","dashAnalyze"].forEach(id=>$(id).onclick=()=>{resetAnalyze();setTab("analyze")});
+$("chooseFile").onclick=()=> $("fileInput").click();
+$("replaceFile").onclick=()=> $("fileInput").click();
+$("fileInput").onchange=()=>setFile($("fileInput").files[0]);
+$("removeFile").onclick=clearFile;
+$("backToUpload").onclick=()=>{$("report").classList.remove("show");$("analyzeWorkspace").classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"})};
+["dragenter","dragover"].forEach(ev=>$("dropzone").addEventListener(ev,e=>{e.preventDefault();$("dropzone").classList.add("drag")}));
+["dragleave","drop"].forEach(ev=>$("dropzone").addEventListener(ev,e=>{e.preventDefault();$("dropzone").classList.remove("drag")}));
+$("dropzone").addEventListener("drop",e=>setFile(e.dataTransfer.files[0]));
+document.addEventListener("paste",e=>{const item=Array.from(e.clipboardData?.items||[]).find(x=>x.type.startsWith("image/"));if(item){setTab("analyze");setFile(item.getAsFile())}});
+$("clearHistory").onclick=()=>{if(!history.length)return;history=[];persistHistory();renderDashboard();renderHistory();toast("History cleared")};
+
+$("analyzeBtn").onclick=async()=>{
+  if(!file)return;
+  $("loading").classList.add("show");
+  try{
+    const fd=new FormData();fd.append("chart",file,file.name||"chart.png");
+    const note=$("note").value.trim();if(note)fd.append("note",note);
+    const res=await fetch("/api/analyze",{method:"POST",body:fd});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(d.message||"Analysis failed");
+    lastData=d;renderResult(d);toast("Analysis complete · "+d.analysis.signal)
+  }catch(e){toast(e.message||"Analysis failed",true)}
+  finally{$("loading").classList.remove("show")}
+};
+
+greeting();renderDashboard();renderHistory();
 })();
 </script>
 </body>
