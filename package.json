@@ -1,0 +1,19 @@
+{
+  "name": "quant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Quant chart screenshot analyzer",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}
