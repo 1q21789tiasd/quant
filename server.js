@@ -33,7 +33,7 @@ app.use(express.static(path.join(__dirname, "public"), {
 }));
 
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.redirect("/studio.html");
 });
 
 app.get("/api/health", (_req, res) => {
