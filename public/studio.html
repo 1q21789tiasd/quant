@@ -379,4 +379,245 @@
     .reason-list li.negative i { background:var(--red); }
 
     .analyze-btn {
-      width:100%; height:43px; border:0; border-radius:8px; background:#f2f3f3; color:#090a0b; font-weight:800; cursor:pointer; display:flex; align-items:center; justi
+      width:100%; height:43px; border:0; border-radius:8px; background:#f2f3f3; color:#090a0b; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .analyze-btn:disabled { cursor:not-allowed; opacity:.4; }
+    .analyze-btn svg { width:16px; height:16px; }
+    .spin { animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .bottom-grid { margin-top:12px; display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:12px; }
+    .mini-panel { min-height:196px; border:1px solid var(--border); border-radius:var(--radius); background:var(--panel); overflow:hidden; }
+    .mini-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 13px; border-bottom:1px solid var(--border-soft); }
+    .mini-head strong { font-size:12px; }
+    .mini-head span { color:var(--muted-2); font-size:10px; }
+    .watch-table { width:100%; border-collapse:collapse; }
+    .watch-table th, .watch-table td { height:31px; padding:0 13px; font-size:11px; text-align:left; border-bottom:1px solid #171a1c; }
+    .watch-table th { color:#596066; font-weight:500; }
+    .watch-table td { color:#c7cbce; }
+    .watch-table tr:last-child td { border-bottom:0; }
+    .watch-table td:last-child, .watch-table th:last-child { text-align:right; }
+
+    .empty-history { height:152px; display:grid; place-items:center; padding:20px; text-align:center; color:#5e656a; }
+    .empty-history strong { color:#91989d; display:block; margin-bottom:5px; font-size:12px; }
+    .empty-history p { margin:0; font-size:10px; line-height:1.5; }
+
+    .disclaimer { margin-top:12px; color:#4f565b; font-size:10px; text-align:center; line-height:1.45; }
+
+    .toast {
+      position:fixed; right:18px; bottom:18px; z-index:100;
+      min-width:280px; max-width:420px; padding:12px 14px;
+      border:1px solid #343a3e; border-radius:9px; background:#111315; color:#d9dddf;
+      box-shadow:0 18px 60px rgba(0,0,0,.45);
+      transform:translateY(20px); opacity:0; pointer-events:none; transition:.2s ease;
+      font-size:12px;
+    }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .toast.error { border-color:rgba(255,92,100,.45); }
+
+    @media (max-width: 1180px) {
+      .workspace { grid-template-columns: 1fr; }
+      .analysis-panel { min-height:0; }
+      .bottom-grid { grid-template-columns:1fr 1fr; }
+      .bottom-grid > :last-child { grid-column:1/-1; }
+      .top-markets { display:none; }
+      .topbar { grid-template-columns:minmax(220px,1fr) auto; }
+    }
+
+    @media (max-width: 820px) {
+      :root { --sidebar: 0px; }
+      .sidebar { display:none; }
+      .main { margin-left:0; }
+      .profile-copy { display:none; }
+      .market-head { grid-template-columns:1fr 1fr; }
+      .instrument { grid-column:1/-1; border-right:0; border-bottom:1px solid var(--border-soft); }
+      .market-stat:nth-child(n+4) { display:none; }
+      .bottom-grid { grid-template-columns:1fr; }
+      .bottom-grid > :last-child { grid-column:auto; }
+      .content { padding:10px; }
+      .chart-panel { min-height:520px; }
+      .chart-stage { min-height:465px; }
+      .tool-btn span { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <svg width="0" height="0" style="position:absolute">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8v9.1a1.1 1.1 0 0 1-1.1 1.1H4.1A1.1 1.1 0 0 1 3 19.9Z" fill="none" stroke="currentColor"/><path d="M9 21v-7h6v7" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7V3" fill="none" stroke="currentColor"/><path d="m3 14 6-5 5 2 7-7" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor"/><path d="m16.2 16.2 4.3 4.3" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4 17c3-4 5-6 8-6s5 2 8-3" fill="none" stroke="currentColor"/><path d="m16 8 4-.1-.2 4" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 5.7c-2.2-2.2-5.7-2.2-7.9 0L12 6.6l-.9-.9a5.6 5.6 0 0 0-7.9 7.9L12 22l8.8-8.4a5.6 5.6 0 0 0 0-7.9Z" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-brief" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor"/><path d="M9 7V4h6v3m-12 5h18" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-news" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" fill="none" stroke="currentColor"/><path d="M8 7h8M8 11h8M8 15h5" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor"/><path d="M19 12a7.3 7.3 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7.5 7.5 0 0 0-1.8-1L14.4 3h-4.8l-.3 3.1a7.5 7.5 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.5a7.3 7.3 0 0 0 0 2L3 14.5l2 3.4 2.4-1a7.5 7.5 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a7.5 7.5 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.2-.7.2-1Z" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" fill="none" stroke="currentColor"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z" fill="none" stroke="currentColor"/><path d="m18.5 15 .8 2.7 2.7.8-2.7.8-.8 2.7-.8-2.7-2.7-.8 2.7-.8.8-2.7Z" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z" fill="none" stroke="currentColor"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="M4 17 9 12l4 3 7-8" fill="none" stroke="currentColor"/><path d="M16 7h4v4" fill="none" stroke="currentColor"/></symbol>
+  </svg>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-copy"><strong>Quant</strong><span>Market intelligence</span></div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item"><svg><use href="#i-home"/></svg>Dashboard</button>
+      <button class="nav-item active"><svg><use href="#i-chart"/></svg>Chart Studio</button>
+      <button class="nav-item"><svg><use href="#i-search"/></svg>Screener</button>
+      <button class="nav-item"><svg><use href="#i-signal"/></svg>Signals</button>
+      <button class="nav-item"><svg><use href="#i-heart"/></svg>Watchlists</button>
+      <button class="nav-item"><svg><use href="#i-brief"/></svg>Portfolio</button>
+      <button class="nav-item"><svg><use href="#i-news"/></svg>Markets</button>
+      <button class="nav-item"><svg><use href="#i-clock"/></svg>Backtesting</button>
+      <button class="nav-item"><svg><use href="#i-settings"/></svg>Settings</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="side-card">
+        <strong>Quant Pro</strong>
+        <p>More analyses, saved setups and advanced market context.</p>
+        <button type="button">Upgrade</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <label class="search">
+        <svg><use href="#i-search"/></svg>
+        <input placeholder="Search stocks, ETFs, crypto or symbols…" />
+        <span class="kbd">⌘ K</span>
+      </label>
+      <div class="top-markets">
+        <span><b>NASDAQ</b><span class="up">Market</span></span>
+        <span><b>S&P 500</b><span>Equities</span></span>
+        <span><b>BTC</b><span>Crypto</span></span>
+      </div>
+      <div class="profile">
+        <div class="avatar">Q</div>
+        <div class="profile-copy"><strong>Quant User</strong><span>Free plan</span></div>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="market-head">
+        <div class="instrument">
+          <div class="instrument-logo"><svg><use href="#i-chart"/></svg></div>
+          <div class="instrument-copy">
+            <div class="eyebrow">Selected market</div>
+            <div class="instrument-row">
+              <strong id="marketTitle">NASDAQ / Stocks</strong>
+              <span class="price" id="visiblePrice">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="market-stat"><span>Symbol</span><strong id="marketSymbol">Upload chart</strong></div>
+        <div class="market-stat"><span>Timeframe</span><strong id="marketTimeframe">—</strong></div>
+        <div class="market-stat"><span>Exchange</span><strong id="marketExchange">—</strong></div>
+        <div class="market-stat"><span>Mode</span><strong>Screenshot analysis</strong></div>
+      </section>
+
+      <div class="workspace">
+        <section class="panel chart-panel">
+          <div class="panel-toolbar">
+            <button class="time-btn">1m</button><button class="time-btn">5m</button><button class="time-btn">15m</button><button class="time-btn active">1h</button><button class="time-btn">4h</button><button class="time-btn">1D</button><button class="time-btn">1W</button>
+            <div class="toolbar-spacer"></div>
+            <button class="tool-btn"><svg><use href="#i-trend"/></svg><span>Indicators</span></button>
+            <button class="tool-btn"><svg><use href="#i-grid"/></svg><span>Layout</span></button>
+          </div>
+
+          <div class="chart-stage" id="chartStage">
+            <svg class="placeholder-chart" viewBox="0 0 1000 550" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="fadeLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4e555a"/><stop offset="1" stop-color="#f1f2f2"/></linearGradient>
+              </defs>
+              <g stroke="#394045" stroke-width="1.2">
+                <path d="M60 405v-36 M85 390v-53 M110 372v-31 M135 355v-52 M160 335v-70 M185 309v-50 M210 282v-63 M235 312v-75 M260 290v-41 M285 258v-74 M310 226v-44 M335 198v-61 M360 221v-78 M385 250v-51 M410 264v-79 M435 292v-55 M460 324v-66 M485 347v-95 M510 371v-58 M535 388v-87 M560 362v-71 M585 337v-65 M610 315v-52 M635 297v-74 M660 270v-48 M685 252v-66 M710 233v-55 M735 210v-63 M760 196v-52 M785 178v-58 M810 160v-41 M835 142v-60 M860 125v-49 M885 112v-38 M910 101v-47"/>
+              </g>
+              <polyline points="55,399 110,366 160,324 210,280 260,292 310,219 360,207 410,256 460,318 510,368 560,354 610,309 660,266 710,227 760,189 810,156 860,121 920,88" fill="none" stroke="url(#fadeLine)" stroke-width="2" opacity=".8"/>
+              <polyline points="55,425 120,401 190,374 260,346 330,318 400,309 470,320 540,337 610,330 680,301 750,265 820,229 920,204" fill="none" stroke="#636b71" stroke-width="1.5" opacity=".5"/>
+            </svg>
+
+            <img id="previewImage" class="preview-image" alt="Uploaded chart preview" />
+
+            <div class="upload-overlay" id="uploadOverlay">
+              <div class="upload-box">
+                <div class="upload-copy">
+                  <div class="upload-icon"><svg><use href="#i-upload"/></svg></div>
+                  <strong>Drop a chart screenshot</strong>
+                  <p>Upload a TradingView chart. Quant will read the visible market, structure, levels and technical setup.</p>
+                </div>
+                <div class="upload-actions">
+                  <button class="primary" id="chooseBtn" type="button">Choose chart</button>
+                  <button class="secondary" id="clearBtn" type="button" hidden>Remove</button>
+                </div>
+                <div class="upload-meta">PNG, JPG or WEBP · max 12 MB</div>
+              </div>
+            </div>
+            <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+          </div>
+        </section>
+
+        <aside class="panel analysis-panel">
+          <div class="analysis-head">
+            <strong><svg><use href="#i-spark"/></svg>Quant Analysis</strong>
+            <span class="status-dot" id="statusDot"></span>
+          </div>
+          <div class="analysis-body">
+            <div class="signal-card wait" id="signalCard">
+              <div class="signal-top">
+                <div class="signal-title">
+                  <div class="signal-icon"><svg><use href="#i-up"/></svg></div>
+                  <div class="signal-copy"><span class="label">Signal</span><strong id="signalValue">WAITING</strong></div>
+                </div>
+                <div class="confidence"><span id="confidenceValue">—</span></div>
+              </div>
+              <div class="signal-summary" id="signalSummary">Upload a clear chart screenshot to generate a setup.</div>
+            </div>
+
+            <div class="levels">
+              <div class="metric"><span>Entry zone</span><strong id="entryValue">—</strong></div>
+              <div class="metric tp"><span>Take profit</span><strong id="tpValue">—</strong></div>
+              <div class="metric sl"><span>Stop loss</span><strong id="slValue">—</strong></div>
+              <div class="metric"><span>Risk / reward</span><strong id="rrValue">—</strong></div>
+            </div>
+
+            <div class="detail-card">
+              <div class="detail-title">Market structure</div>
+              <div class="detail-rows">
+                <div class="detail-row"><span>Trend</span><b id="trendValue">—</b></div>
+                <div class="detail-row"><span>Momentum</span><b id="momentumValue">—</b></div>
+                <div class="detail-row"><span>Volume</span><b id="volumeValue">—</b></div>
+                <div class="detail-row"><span>Setup</span><b id="setupValue">—</b></div>
+              </div>
+            </div>
+
+            <div class="detail-card">
+              <div class="detail-title">Key factors</div>
+              <ul class="reason-list" id="reasonList">
+                <li><i></i><span>Visible chart structure</span></li>
+                <li><i></i><span>Support and resistance</span></li>
+                <li><i></i><span>Momentum and volume context</span></li>
+              </ul>
+            </div>
+
+            <button class="analyze-btn" id="analyzeBtn" type="button" disabled>
+              <svg><use href="#i-spark"/></svg><span>Analyze chart</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="bottom-grid">
+        <section class="mini-panel">
+          <div class="mini-head"><strong>Primary markets</strong><span>Stocks first · crypto supported</span></div>
+          <table class="watch-table">
+            <thead><tr><th>Market</th><th>Focus</th><th>Support</th></tr></thead>
+            <tbody>
+              <tr><td>NASDAQ 100</td><td>Index / tech</td><td class="up">Primary</td></tr>
+              <t
