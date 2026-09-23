@@ -620,4 +620,242 @@
             <thead><tr><th>Market</th><th>Focus</th><th>Support</th></tr></thead>
             <tbody>
               <tr><td>NASDAQ 100</td><td>Index / tech</td><td class="up">Primary</td></tr>
-              <t
+              <tr><td>NVDA / AAPL / MSFT</td><td>Large-cap stocks</td><td class="up">Primary</td></tr>
+              <tr><td>S&P 500</td><td>Index</td><td>Supported</td></tr>
+              <tr><td>BTC / ETH</td><td>Crypto</td><td>Supported</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="mini-panel">
+          <div class="mini-head"><strong>Detected levels</strong><span id="levelCount">No analysis</span></div>
+          <div class="empty-history" id="levelsEmpty"><div><strong>Support & resistance</strong><p>Detected levels from the uploaded screenshot will appear here.</p></div></div>
+          <table class="watch-table" id="levelsTable" hidden><tbody id="levelsBody"></tbody></table>
+        </section>
+
+        <section class="mini-panel">
+          <div class="mini-head"><strong>Analysis details</strong><span id="modelMeta">GPT‑5.6 Luna</span></div>
+          <div class="empty-history" id="detailsEmpty"><div><strong>No result yet</strong><p>Analysis metadata and warnings will appear after a chart is processed.</p></div></div>
+          <table class="watch-table" id="detailsTable" hidden><tbody id="detailsBody"></tbody></table>
+        </section>
+      </div>
+
+      <div class="disclaimer">Quant analyzes only the information visible in the uploaded screenshot. Signals are informational technical-analysis outputs, not guarantees or individualized investment advice.</div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $("fileInput");
+  const chooseBtn = $("chooseBtn");
+  const clearBtn = $("clearBtn");
+  const chartStage = $("chartStage");
+  const uploadOverlay = $("uploadOverlay");
+  const previewImage = $("previewImage");
+  const analyzeBtn = $("analyzeBtn");
+  const toast = $("toast");
+  let selectedFile = null;
+  let currentObjectUrl = null;
+
+  function showToast(message, type = "normal") {
+    toast.textContent = message;
+    toast.className = `toast show ${type === "error" ? "error" : ""}`;
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toast.classList.remove("show"), 3600);
+  }
+
+  function formatNumber(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return "—";
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: n >= 1000 ? 2 : 4 }).format(n);
+  }
+
+  function formatZone(low, high) {
+    if (!low && !high) return "—";
+    if (Math.abs(low - high) < Number.EPSILON) return formatNumber(low);
+    return `${formatNumber(low)} – ${formatNumber(high)}`;
+  }
+
+  function resetAnalysis() {
+    $("signalCard").className = "signal-card wait";
+    $("signalValue").textContent = "WAITING";
+    $("confidenceValue").textContent = "—";
+    $("signalSummary").textContent = "Upload a clear chart screenshot to generate a setup.";
+    ["entryValue","tpValue","slValue","rrValue","trendValue","momentumValue","volumeValue","setupValue"].forEach((id) => $(id).textContent = "—");
+    $("reasonList").innerHTML = '<li><i></i><span>Visible chart structure</span></li><li><i></i><span>Support and resistance</span></li><li><i></i><span>Momentum and volume context</span></li>';
+    $("marketTitle").textContent = "NASDAQ / Stocks";
+    $("marketSymbol").textContent = "Upload chart";
+    $("marketTimeframe").textContent = "—";
+    $("marketExchange").textContent = "—";
+    $("visiblePrice").textContent = "—";
+    $("statusDot").className = "status-dot";
+    $("levelsTable").hidden = true;
+    $("levelsEmpty").hidden = false;
+    $("detailsTable").hidden = true;
+    $("detailsEmpty").hidden = false;
+    $("levelCount").textContent = "No analysis";
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    fileInput.value = "";
+    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+    previewImage.removeAttribute("src");
+    chartStage.classList.remove("has-image");
+    clearBtn.hidden = true;
+    chooseBtn.textContent = "Choose chart";
+    analyzeBtn.disabled = true;
+    resetAnalysis();
+  }
+
+  function useFile(file) {
+    if (!file) return;
+    const allowed = ["image/png", "image/jpeg", "image/webp"];
+    if (!allowed.includes(file.type)) return showToast("Use a PNG, JPG or WEBP screenshot.", "error");
+    if (file.size > 12 * 1024 * 1024) return showToast("That image is larger than 12 MB.", "error");
+
+    selectedFile = file;
+    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = URL.createObjectURL(file);
+    previewImage.src = currentObjectUrl;
+    chartStage.classList.add("has-image");
+    clearBtn.hidden = false;
+    chooseBtn.textContent = "Replace";
+    analyzeBtn.disabled = false;
+    $("statusDot").className = "status-dot ready";
+  }
+
+  chooseBtn.addEventListener("click", () => fileInput.click());
+  clearBtn.addEventListener("click", clearFile);
+  fileInput.addEventListener("change", () => useFile(fileInput.files[0]));
+
+  ["dragenter", "dragover"].forEach((eventName) => chartStage.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    chartStage.classList.add("drop-active");
+  }));
+  ["dragleave", "drop"].forEach((eventName) => chartStage.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    chartStage.classList.remove("drop-active");
+  }));
+  chartStage.addEventListener("drop", (e) => useFile(e.dataTransfer.files[0]));
+
+  document.addEventListener("paste", (e) => {
+    const item = [...(e.clipboardData?.items || [])].find((x) => x.type.startsWith("image/"));
+    if (item) useFile(item.getAsFile());
+  });
+
+  function setStateClass(el, state) {
+    el.classList.remove("bull", "bear");
+    if (state === "bullish" || state === "strong") el.classList.add("bull");
+    if (state === "bearish" || state === "weak") el.classList.add("bear");
+  }
+
+  function renderLevels(analysis) {
+    const rows = [];
+    analysis.keyLevels.resistance.forEach((value, i) => rows.push([`Resistance ${i + 1}`, value, "down"]));
+    analysis.keyLevels.support.forEach((value, i) => rows.push([`Support ${i + 1}`, value, "up"]));
+    $("levelCount").textContent = rows.length ? `${rows.length} levels` : "No clear levels";
+    if (!rows.length) {
+      $("levelsTable").hidden = true;
+      $("levelsEmpty").hidden = false;
+      return;
+    }
+    $("levelsBody").innerHTML = rows.map(([name, value, cls]) => `<tr><td>${name}</td><td class="${cls}">${formatNumber(value)}</td></tr>`).join("");
+    $("levelsEmpty").hidden = true;
+    $("levelsTable").hidden = false;
+  }
+
+  function renderDetails(analysis, meta) {
+    const warnings = analysis.warnings.length ? analysis.warnings.join(" · ") : "No extra warning detected";
+    const rows = [
+      ["Image quality", analysis.imageQuality],
+      ["AI model", meta.model || "—"],
+      ["Latency", meta.elapsedMs ? `${(meta.elapsedMs / 1000).toFixed(1)}s` : "—"],
+      ["Tokens", meta.totalTokens ?? "—"],
+      ["Warnings", warnings]
+    ];
+    $("detailsBody").innerHTML = rows.map(([name, value]) => `<tr><td>${name}</td><td>${String(value).replaceAll("<", "&lt;")}</td></tr>`).join("");
+    $("detailsEmpty").hidden = true;
+    $("detailsTable").hidden = false;
+    $("modelMeta").textContent = meta.model || "GPT‑5.6 Luna";
+  }
+
+  function renderAnalysis(analysis, meta) {
+    const signal = analysis.signal;
+    const card = $("signalCard");
+    card.className = `signal-card ${signal === "BUY" ? "buy" : signal === "SELL" ? "sell" : "wait"}`;
+    $("signalValue").textContent = signal;
+    $("confidenceValue").textContent = `${analysis.confidence}% setup confidence`;
+    $("signalSummary").textContent = analysis.summary;
+    $("entryValue").textContent = formatZone(analysis.entry.low, analysis.entry.high);
+    $("tpValue").textContent = analysis.takeProfit.filter(Boolean).map(formatNumber).join(" / ") || "—";
+    $("slValue").textContent = formatNumber(analysis.stopLoss);
+    $("rrValue").textContent = analysis.riskReward ? `1 : ${analysis.riskReward.toFixed(2)}` : "—";
+
+    const trend = $("trendValue"); trend.textContent = analysis.trend; setStateClass(trend, analysis.trend);
+    const momentum = $("momentumValue"); momentum.textContent = analysis.momentum; setStateClass(momentum, analysis.momentum);
+    const volume = $("volumeValue"); volume.textContent = analysis.volume; setStateClass(volume, analysis.volume);
+    $("setupValue").textContent = analysis.setup || "—";
+
+    $("reasonList").innerHTML = analysis.reasons.map((reason) => {
+      const klass = signal === "BUY" ? "positive" : signal === "SELL" ? "negative" : "";
+      return `<li class="${klass}"><i></i><span>${reason.replaceAll("<", "&lt;")}</span></li>`;
+    }).join("");
+
+    $("marketTitle").textContent = analysis.instrument.name || analysis.instrument.symbol || "Detected chart";
+    $("marketSymbol").textContent = analysis.instrument.symbol || "—";
+    $("marketTimeframe").textContent = analysis.instrument.timeframe || "—";
+    $("marketExchange").textContent = analysis.instrument.exchange || "—";
+    $("visiblePrice").textContent = formatNumber(analysis.instrument.visiblePrice);
+    $("statusDot").className = "status-dot ready";
+
+    renderLevels(analysis);
+    renderDetails(analysis, meta);
+  }
+
+  async function analyze() {
+    if (!selectedFile) return;
+
+    const buttonText = analyzeBtn.querySelector("span");
+    const buttonIcon = analyzeBtn.querySelector("svg");
+    analyzeBtn.disabled = true;
+    buttonText.textContent = "Analyzing chart…";
+    buttonIcon.innerHTML = '<use href="#i-loader"/>';
+    buttonIcon.classList.add("spin");
+
+    try {
+      const form = new FormData();
+      form.append("chart", selectedFile, selectedFile.name || "chart.png");
+
+      const response = await fetch("/api/analyze", { method: "POST", body: form });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Chart analysis failed");
+
+      renderAnalysis(data.analysis, data.meta || {});
+      showToast(`Analysis complete · ${data.analysis.signal}`);
+    } catch (error) {
+      showToast(error.message || "Chart analysis failed", "error");
+    } finally {
+      analyzeBtn.disabled = false;
+      buttonText.textContent = "Analyze again";
+      buttonIcon.classList.remove("spin");
+      buttonIcon.innerHTML = '<use href="#i-spark"/>';
+    }
+  }
+
+  analyzeBtn.addEventListener("click", analyze);
+
+  document.querySelectorAll(".time-btn").forEach((btn) => btn.addEventListener("click", () => {
+    document.querySelectorAll(".time-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+  }));
+
+  resetAnalysis();
+})();
+</script>
+</body>
+</html>
