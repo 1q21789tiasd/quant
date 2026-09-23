@@ -71,96 +71,73 @@ const analysisSchema = {
       required: ["symbol", "name", "market", "exchange", "timeframe", "visiblePrice"],
       additionalProperties: false
     },
-    signal: {
-      type: "string",
-      enum: ["BUY", "SELL", "DO NOTHING"]
-    },
-    confidence: {
-      type: "integer",
-      minimum: 0,
-      maximum: 100
-    },
+    signal: { type: "string", enum: ["BUY", "SELL", "DO NOTHING"] },
+    confidence: { type: "integer", minimum: 0, maximum: 100 },
     setup: { type: "string" },
+    summary: { type: "string" },
+    imageQuality: { type: "string", enum: ["good", "usable", "poor"] },
     entry: {
       type: "object",
-      properties: {
-        low: { type: "number" },
-        high: { type: "number" }
-      },
+      properties: { low: { type: "number" }, high: { type: "number" } },
       required: ["low", "high"],
       additionalProperties: false
     },
-    takeProfit: {
-      type: "array",
-      items: { type: "number" },
-      minItems: 2,
-      maxItems: 3
-    },
+    takeProfit: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 3 },
     stopLoss: { type: "number" },
     riskReward: { type: "number" },
-    trend: {
-      type: "string",
-      enum: ["bullish", "bearish", "neutral"]
-    },
-    momentum: {
-      type: "string",
-      enum: ["bullish", "bearish", "neutral"]
-    },
-    volume: {
-      type: "string",
-      enum: ["strong", "normal", "weak", "unavailable"]
-    },
+    trend: { type: "string", enum: ["bullish", "bearish", "neutral"] },
+    momentum: { type: "string", enum: ["bullish", "bearish", "neutral"] },
+    volume: { type: "string", enum: ["strong", "normal", "weak", "unavailable"] },
+    visibleIndicators: { type: "array", items: { type: "string" }, maxItems: 10 },
     keyLevels: {
       type: "object",
       properties: {
-        support: {
-          type: "array",
-          items: { type: "number" },
-          maxItems: 4
-        },
-        resistance: {
-          type: "array",
-          items: { type: "number" },
-          maxItems: 4
-        }
+        support: { type: "array", items: { type: "number" }, maxItems: 5 },
+        resistance: { type: "array", items: { type: "number" }, maxItems: 5 }
       },
       required: ["support", "resistance"],
       additionalProperties: false
     },
-    reasons: {
-      type: "array",
-      items: { type: "string" },
-      minItems: 3,
-      maxItems: 6
+    marketStructure: {
+      type: "object",
+      properties: {
+        trendDescription: { type: "string" },
+        supportContext: { type: "string" },
+        resistanceContext: { type: "string" },
+        pattern: { type: "string" }
+      },
+      required: ["trendDescription", "supportContext", "resistanceContext", "pattern"],
+      additionalProperties: false
     },
-    warnings: {
-      type: "array",
-      items: { type: "string" },
-      maxItems: 4
+    tradePlan: {
+      type: "object",
+      properties: {
+        actionNow: { type: "string" },
+        confirmation: { type: "string" },
+        invalidation: { type: "string" },
+        management: { type: "string" }
+      },
+      required: ["actionNow", "confirmation", "invalidation", "management"],
+      additionalProperties: false
     },
-    summary: { type: "string" },
-    imageQuality: {
-      type: "string",
-      enum: ["good", "usable", "poor"]
-    }
+    scenarios: {
+      type: "object",
+      properties: {
+        bullish: { type: "string" },
+        bearish: { type: "string" },
+        neutral: { type: "string" }
+      },
+      required: ["bullish", "bearish", "neutral"],
+      additionalProperties: false
+    },
+    reasons: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 8 },
+    whatChangesSignal: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 6 },
+    warnings: { type: "array", items: { type: "string" }, maxItems: 6 }
   },
   required: [
-    "instrument",
-    "signal",
-    "confidence",
-    "setup",
-    "entry",
-    "takeProfit",
-    "stopLoss",
-    "riskReward",
-    "trend",
-    "momentum",
-    "volume",
-    "keyLevels",
-    "reasons",
-    "warnings",
-    "summary",
-    "imageQuality"
+    "instrument","signal","confidence","setup","summary","imageQuality","entry","takeProfit",
+    "stopLoss","riskReward","trend","momentum","volume","visibleIndicators","keyLevels",
+    "marketStructure","tradePlan","scenarios","reasons","whatChangesSignal","warnings"
   ],
   additionalProperties: false
 };
@@ -168,23 +145,38 @@ const analysisSchema = {
 const SYSTEM_PROMPT = `
 You are Quant's visual chart-analysis engine.
 
-You are given a screenshot of a financial chart, usually from TradingView. Your job is to extract what is visibly present and produce a conservative technical-analysis setup.
+You receive one screenshot of a financial chart, usually from TradingView. Build a detailed, conservative technical-analysis report from ONLY what is visible in the image.
 
-IMPORTANT RULES:
-- This is screenshot-only analysis. Never pretend you have live prices, order books, news, fundamentals, or candles outside the visible screenshot.
-- Read visible ticker, market/exchange, timeframe, price scale, indicators, volume, structure, support/resistance, trend, and recent price action.
-- Prefer DO NOTHING whenever the image is ambiguous, cropped, low quality, has an unclear timeframe/ticker, has poor risk/reward, or lacks a clean setup.
-- BUY and SELL are setup labels, not guarantees.
-- Confidence means confidence that the visible chart supports the setup, NOT probability of profit.
-- Use only prices that can be reasonably inferred from the screenshot's axis/labels. Do not invent precision.
-- If exact prices are difficult to read, use conservative rounded values.
-- Entry low/high define a zone. For DO NOTHING, both entry values may be 0, stopLoss may be 0, takeProfit should be [0, 0], and riskReward should be 0.
+CORE RULES:
+- Never pretend you have live prices, order books, news, fundamentals, hidden candles, or data outside the screenshot.
+- Read the visible ticker, exchange/market, timeframe, current visible price, candle structure, visible indicators, volume, support/resistance, trend, momentum and chart patterns.
+- Prefer DO NOTHING when the screenshot is ambiguous, cropped, poor quality, missing important context, has conflicting structure, poor risk/reward, or no clean confirmation.
+- BUY and SELL are chart-setup labels, not promises or personalized investment recommendations.
+- Confidence means confidence that the visible screenshot supports the setup, NOT probability of profit.
+- Never invent an indicator that is not visibly present.
+- Never invent exact price precision. If a level is approximate, use conservative rounded values.
+- Explain WHY every conclusion was reached with visible evidence.
+
+TRADE PLAN:
+- actionNow: what the chart setup suggests doing now in plain language. For example, wait for confirmation, avoid chasing, or monitor the entry zone.
+- confirmation: the specific visible price action that would strengthen the setup.
+- invalidation: the specific visible condition or level that would invalidate the thesis.
+- management: a conservative description of how the setup would be managed if triggered.
 - For BUY: stop must be below the entry zone and targets above it.
 - For SELL: stop must be above the entry zone and targets below it.
-- If these constraints cannot be satisfied from visible evidence, choose DO NOTHING.
-- Keep the summary concise and professional.
-- Reasons must reference visible technical evidence, not vague AI language.
-- warnings should mention screenshot limitations, nearby opposing levels, overextension, weak volume, or missing confirmation when relevant.
+- For DO NOTHING: entry low/high = 0, stopLoss = 0, takeProfit = [0,0], riskReward = 0. The action plan must explain what to wait for instead.
+
+SCENARIOS:
+- bullish: what visible development would favor upside.
+- bearish: what visible development would favor downside.
+- neutral: what would keep the chart untradeable or range-bound.
+
+OUTPUT QUALITY:
+- reasons: 4-8 concrete visible reasons.
+- whatChangesSignal: 2-6 concrete events/levels that could change the verdict.
+- warnings: screenshot limitations, nearby opposing levels, overextension, weak volume, missing confirmation, or ambiguity.
+- marketStructure fields should be specific, concise and useful.
+- summary should be 2-4 sentences and explain the setup clearly.
 `;
 
 function sanitizeResult(result) {
@@ -252,7 +244,7 @@ async function analyzeChartImage({ buffer, mimeType, note = "" }) {
         model: MODEL,
         stream: true,
         store: false,
-        max_output_tokens: 1600,
+        max_output_tokens: 3000,
         reasoning: { effort: "none" },
         input: [
           {
