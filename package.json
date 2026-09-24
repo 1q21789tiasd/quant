@@ -1,6 +1,6 @@
 {
   "name": "quant-bloodline",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Quant autonomous NASDAQ paper-trading research system",
   "main": "server.js",
@@ -10,10 +10,9 @@
     "browser:install": "playwright install chromium"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "playwright": "^1.55.0"
