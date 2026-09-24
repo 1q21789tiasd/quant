@@ -1,14 +1,18 @@
 const fs = require("fs");
 const path = require("path");
-const Database = require("better-sqlite3");
+const { DatabaseSync } = require("node:sqlite");
 const config = require("./config");
 
 fs.mkdirSync(path.dirname(config.DB_PATH), { recursive: true });
 fs.mkdirSync(config.CHART_DIR, { recursive: true });
 
-const db = new Database(config.DB_PATH);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+const db = new DatabaseSync(config.DB_PATH);
+
+db.exec(`
+PRAGMA journal_mode = WAL;
+PRAGMA foreign_keys = ON;
+PRAGMA busy_timeout = 5000;
+`);
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS account_state (
@@ -131,7 +135,9 @@ function setBalance(balance) {
 
 function resetSimulation() {
   const now = new Date().toISOString();
-  const tx = db.transaction(() => {
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
     db.prepare("DELETE FROM position_events").run();
     db.prepare("DELETE FROM actions").run();
     db.prepare("DELETE FROM positions").run();
@@ -141,8 +147,11 @@ function resetSimulation() {
     db.prepare("DELETE FROM system_events").run();
     db.prepare("UPDATE account_state SET starting_balance = ?, balance = ?, updated_at = ? WHERE id = 1")
       .run(config.STARTING_BALANCE_NIS, config.STARTING_BALANCE_NIS, now);
-  });
-  tx();
+    db.exec("COMMIT");
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
 }
 
 function insertSnapshot(snapshot) {
@@ -320,8 +329,13 @@ function listSystemEvents(limit = 100) {
     .map(r => ({ ...r, data: parse(r.data_json, {}) }));
 }
 
+function close() {
+  try { db.close(); } catch {}
+}
+
 module.exports = {
   raw: db,
+  close,
   getAccount,
   setBalance,
   resetSimulation,
