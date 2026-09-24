@@ -5,7 +5,7 @@ const config=require("./config");
 const db=require("./db");
 const broker=require("./paperBroker");
 const watcher=require("./watcher");
-const reporter=require("./reporter");
+const tradingView=require("./tradingView");
 const events=require("./eventBus");
 
 const app=express();
@@ -41,17 +41,31 @@ function snapshotState(){
   const openPosition=db.getOpenPosition();
   const cycle=db.latestCycle();
   const reports=db.listDailyReports(1);
+
   return {
     watcher:watcher.getStatus(),
     account,
     openPosition,
     latestSnapshot:snap?{
-      id:snap.id,ts:snap.ts,symbol:snap.symbol,price:snap.price,chartPath:snap.chart_path,
+      id:snap.id,
+      ts:snap.ts,
+      symbol:snap.symbol,
+      price:snap.price,
+      chartPath:snap.chart_path,
+      source:snap.data?.source||"TradingView",
+      sourceStatus:snap.data?.status||"",
+      name:snap.data?.name||config.MARKET_DISPLAY_NAME,
       frames:snap.data?.frames||{}
     }:null,
     latestCycle:cycle?{
-      id:cycle.id,ts:cycle.ts,status:cycle.status,trigger:cycle.trigger,
-      summary:cycle.summary,confidence:cycle.confidence,decision:cycle.decision,error:cycle.error
+      id:cycle.id,
+      ts:cycle.ts,
+      status:cycle.status,
+      trigger:cycle.trigger,
+      summary:cycle.summary,
+      confidence:cycle.confidence,
+      decision:cycle.decision,
+      error:cycle.error
     }:null,
     today:reports[0]||null,
     limits:{
@@ -68,7 +82,7 @@ function snapshotState(){
 app.get("/api/state",(_req,res)=>res.json(snapshotState()));
 app.get("/api/cycles",(req,res)=>res.json({items:db.listCycles(req.query.limit)}));
 app.get("/api/actions",(req,res)=>res.json({items:db.listActions(req.query.limit)}));
-app.get("/api/trades",(req,res)=>res.json({items:db.listPositions(req.query.limit),events:db.listPositionEvents(200)}));
+app.get("/api/trades",(req,res)=>res.json({items:db.listPositions(req.query.limit),events:db.listPositionEvents(250)}));
 app.get("/api/reports",(req,res)=>res.json({items:db.listDailyReports(req.query.limit)}));
 app.get("/api/events",(req,res)=>res.json({items:db.listSystemEvents(req.query.limit)}));
 
@@ -95,10 +109,21 @@ app.post("/api/control/run",async(_req,res)=>{
     res.status(409).json({ok:false,message:"Cycle could not be completed"});
   }
 });
-app.post("/api/control/pause",(_req,res)=>{watcher.pause();res.json({ok:true})});
-app.post("/api/control/resume",(_req,res)=>{watcher.resume();res.json({ok:true})});
+
+app.post("/api/control/pause",(_req,res)=>{
+  watcher.pause();
+  res.json({ok:true});
+});
+
+app.post("/api/control/resume",(_req,res)=>{
+  watcher.resume();
+  res.json({ok:true});
+});
+
 app.post("/api/control/reset",(req,res)=>{
-  if(req.body?.confirm!=="RESET")return res.status(400).json({ok:false,message:"Confirmation required"});
+  if(req.body?.confirm!=="RESET"){
+    return res.status(400).json({ok:false,message:"Confirmation required"});
+  }
   broker.reset();
   res.json({ok:true});
 });
@@ -111,6 +136,17 @@ app.use((err,req,res,next)=>{
   res.status(500).json({ok:false,message:"Quant could not complete the request"});
 });
 
-app.listen(config.PORT,"0.0.0.0",()=>{
+const server=app.listen(config.PORT,"0.0.0.0",()=>{
   console.log("Quant running on 0.0.0.0:"+config.PORT);
 });
+
+async function shutdown(signal){
+  console.log("Shutting down:",signal);
+  watcher.pause();
+  await tradingView.closeBrowser().catch(()=>{});
+  server.close(()=>process.exit(0));
+  setTimeout(()=>process.exit(0),5000).unref();
+}
+
+process.on("SIGINT",()=>shutdown("SIGINT"));
+process.on("SIGTERM",()=>shutdown("SIGTERM"));
