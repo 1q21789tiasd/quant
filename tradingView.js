@@ -252,8 +252,23 @@ async function scrapeTechnicals(page, intervalName) {
   }
 }
 
-async function captureMarket() {
+async function captureMarket({ signal } = {}) {
   const context = await newContext();
+
+  const abortCapture = () => {
+    context.close().catch(() => {});
+  };
+
+  if (signal?.aborted) {
+    await context.close().catch(() => {});
+    const error = new Error("TradingView capture cancelled");
+    error.name = "AbortError";
+    error.code = "cycle_cancelled";
+    throw error;
+  }
+
+  signal?.addEventListener("abort", abortCapture, { once: true });
+
   const chartPage = await context.newPage();
   const techPage = await context.newPage();
 
@@ -321,7 +336,16 @@ async function captureMarket() {
       frames,
       images
     };
+  } catch (error) {
+    if (signal?.aborted) {
+      const cancelled = new Error("TradingView capture cancelled");
+      cancelled.name = "AbortError";
+      cancelled.code = "cycle_cancelled";
+      throw cancelled;
+    }
+    throw error;
   } finally {
+    signal?.removeEventListener("abort", abortCapture);
     await context.close().catch(() => {});
   }
 }
