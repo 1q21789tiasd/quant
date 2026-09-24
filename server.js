@@ -101,24 +101,33 @@ app.get("/api/stream",(req,res)=>{
   req.on("close",()=>{clearInterval(ping);unsub()});
 });
 
-app.post("/api/control/run",(_req,res)=>{
-  const request=watcher.requestCycle("manual");
+app.post("/api/control/run",async(_req,res)=>{
+  try{
+    const request=await watcher.requestCycle("manual");
 
-  if(request.promise){
-    request.promise.catch(error=>{
-      console.error("[QUANT][MANUAL_CYCLE]",error);
+    if(request.promise){
+      request.promise.catch(error=>{
+        if(error?.code!=="cycle_cancelled"){
+          console.error("[QUANT][MANUAL_CYCLE]",error);
+        }
+      });
+    }
+
+    return res.status(202).json({
+      ok:true,
+      accepted:true,
+      restarted:!!request.restarted,
+      message:request.restarted
+        ? "Active cycle cancelled and fresh manual cycle started; 15-minute timer reset"
+        : "Fresh manual cycle started; 15-minute timer reset"
+    });
+  }catch(error){
+    console.error("[QUANT][MANUAL_RESTART]",error);
+    return res.status(500).json({
+      ok:false,
+      message:"Fresh cycle could not be started"
     });
   }
-
-  return res.status(202).json({
-    ok:true,
-    accepted:true,
-    queued:!!request.queued,
-    alreadyRunning:!!request.alreadyRunning,
-    message:request.queued
-      ? "Manual cycle queued; 15-minute timer reset"
-      : "Manual cycle started; 15-minute timer reset"
-  });
 });
 
 app.post("/api/control/pause",(_req,res)=>{
