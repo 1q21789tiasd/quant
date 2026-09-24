@@ -411,10 +411,18 @@ function renderState(s){
   $("usedMargin").textContent=money(a.usedMarginNis);$("unrealized").textContent=money(a.unrealizedPnlNis);$("goalText").textContent="Benchmark "+money(l.dailyBenchmarkNis);
   $("sideStatus").textContent=w.paused?"Watcher paused":w.inCycle?"Capturing + analyzing":"Watcher active";$("sideDot").classList.toggle("paused",!!w.paused);
   $("pauseBtn").textContent=w.paused?"Resume":"Pause";$("settingsPause").textContent=w.paused?"Resume":"Pause";$("cycleState").textContent=w.inCycle?"RUNNING":w.paused?"PAUSED":"WAITING";
-  $("runBtn").disabled=!!w.inCycle;
-  $("settingsRun").disabled=!!w.inCycle;
-  $("runBtn").textContent=w.inCycle?"Cycle running…":"Run cycle now";
-  $("settingsRun").textContent=w.inCycle?"Cycle running…":"Run now";
+  $("runBtn").disabled=false;
+  $("settingsRun").disabled=false;
+  $("runBtn").textContent=w.manualQueued
+    ?"Manual run queued"
+    :w.inCycle
+      ?"Run again after this"
+      :"Run cycle now";
+  $("settingsRun").textContent=w.manualQueued
+    ?"Manual run queued"
+    :w.inCycle
+      ?"Run again after this"
+      :"Run now";
   $("watcherText").textContent=w.paused?"Paused":w.inCycle?"Running cycle":"Active";$("lastCycleText").textContent=time(w.lastCycleAt);$("nextCycleText").textContent=time(w.nextRunAt);
   $("limitBalance").textContent=money(a.startingBalanceNis);$("limitLeverage").textContent="1 : "+l.leverage;$("limitMargin").textContent=money(l.maxMarginPerTradeNis);$("limitRisk").textContent=money(l.maxRiskPerTradeNis);$("limitDaily").textContent=money(l.maxDailyLossNis);$("limitGoal").textContent=money(l.dailyBenchmarkNis)+"/day";$("limitCycle").textContent=l.cycleMinutes+" minutes";
 
@@ -466,14 +474,13 @@ async function loadDetail(v){
 }
 async function control(action){
   if(busy)return;
-  if(action==="run"&&state?.watcher?.inCycle)return;
   busy=true;
   try{
     const result=await api("/api/control/"+action,{method:"POST",headers:{"Content-Type":"application/json"}});
     await refresh();
     if(active!=="overview"&&active!=="captures")await loadDetail(active);
-    if(action==="run"&&result?.alreadyRunning){
-      console.info("Quant cycle is already running");
+    if(action==="run"&&result?.queued){
+      console.info("Manual Quant cycle queued; automatic timer reset");
     }
   }catch(e){
     alert(e.message);
