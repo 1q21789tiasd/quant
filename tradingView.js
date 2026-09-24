@@ -56,18 +56,60 @@ async function newContext() {
 
 async function dismissNoise(page) {
   const selectors = [
+    '#onetrust-accept-btn-handler',
     'button:has-text("Accept all")',
     'button:has-text("Accept All")',
+    'button:has-text("Accept cookies")',
     'button:has-text("I agree")',
     'button:has-text("Allow all")',
-    '[aria-label="Close"]'
+    '[data-name="accept-all"]'
   ];
+
   for (const selector of selectors) {
     try {
       const el = page.locator(selector).first();
-      if (await el.isVisible({ timeout: 400 })) await el.click({ timeout: 800 });
+      if (await el.isVisible({ timeout: 500 })) {
+        await el.click({ timeout: 1200 });
+        await page.waitForTimeout(120);
+      }
     } catch {}
   }
+
+  // TradingView sometimes injects the consent banner after the chart itself has loaded.
+  // If clicking the button did not remove it, hide only small fixed/sticky consent overlays.
+  try {
+    await page.evaluate(() => {
+      const patterns = [
+        "this website uses cookies",
+        "accept all",
+        "accept cookies",
+        "our policy"
+      ];
+
+      const nodes = Array.from(document.querySelectorAll("body *"));
+      for (const node of nodes) {
+        const own = (node.textContent || "").trim().toLowerCase();
+        if (!own || !patterns.some(p => own.includes(p))) continue;
+
+        let cur = node;
+        for (let depth = 0; depth < 7 && cur && cur !== document.body; depth++, cur = cur.parentElement) {
+          const style = getComputedStyle(cur);
+          const rect = cur.getBoundingClientRect();
+
+          if (
+            (style.position === "fixed" || style.position === "sticky") &&
+            rect.width > 100 &&
+            rect.width < 1000 &&
+            rect.height > 20 &&
+            rect.height < 360
+          ) {
+            cur.style.setProperty("display", "none", "important");
+            break;
+          }
+        }
+      }
+    });
+  } catch {}
 }
 
 async function text(page, selector) {
@@ -112,6 +154,8 @@ async function captureFrame(page, label, interval) {
   await page.goto(chartUrl(interval), { waitUntil: "domcontentloaded", timeout: 60000 });
   await dismissNoise(page);
   await waitForChart(page);
+  await dismissNoise(page);
+  await page.waitForTimeout(250);
 
   const title = await text(page, 'button[aria-label="Change symbol"]');
   const intervalText = await text(page, '[data-qa-id="title-wrapper legend-source-interval"] button');
@@ -140,7 +184,18 @@ async function captureFrame(page, label, interval) {
   fs.mkdirSync(config.CHART_DIR, { recursive: true });
 
   const container = page.locator('[data-qa-id="chart-container"]').first();
+  let captureSize = { width: 1920, height: 1080 };
+
+  await dismissNoise(page);
+
   if (await container.count()) {
+    const box = await container.boundingBox().catch(() => null);
+    if (box) {
+      captureSize = {
+        width: Math.round(box.width),
+        height: Math.round(box.height)
+      };
+    }
     await container.screenshot({ path: fullPath });
   } else {
     await page.screenshot({ path: fullPath, fullPage: false });
@@ -158,6 +213,7 @@ async function captureFrame(page, label, interval) {
     sell,
     price,
     capturedAt: new Date().toISOString(),
+    captureSize,
     chartPath: "/charts/" + filename,
     fullPath,
     buffer: fs.readFileSync(fullPath)
@@ -241,6 +297,7 @@ async function captureMarket() {
         sell: frame.sell,
         price: frame.price,
         capturedAt: frame.capturedAt,
+        captureSize: frame.captureSize,
         chartPath: frame.chartPath,
         technicals
       };
