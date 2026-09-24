@@ -409,16 +409,27 @@ function renderState(s){
   const a=s.account||{},w=s.watcher||{},l=s.limits||{},snap=s.latestSnapshot,pos=s.openPosition,cy=s.latestCycle;
   $("balance").textContent=money(a.balanceNis);$("equity").textContent=money(a.equityNis);$("todayPnl").textContent=money(a.realizedPnlTodayNis);
   $("usedMargin").textContent=money(a.usedMarginNis);$("unrealized").textContent=money(a.unrealizedPnlNis);$("goalText").textContent="Benchmark "+money(l.dailyBenchmarkNis);
-  $("sideStatus").textContent=w.paused?"Watcher paused":w.inCycle?"Capturing + analyzing":"Watcher active";$("sideDot").classList.toggle("paused",!!w.paused);
+  $("sideStatus").textContent=w.paused
+    ?"Watcher paused"
+    :w.restarting
+      ?"Restarting cycle…"
+      :w.inCycle
+        ?"Capturing + analyzing"
+        :"Watcher active";
+  $("sideDot").classList.toggle("paused",!!w.paused);
   $("pauseBtn").textContent=w.paused?"Resume":"Pause";$("settingsPause").textContent=w.paused?"Resume":"Pause";$("cycleState").textContent=w.inCycle?"RUNNING":w.paused?"PAUSED":"WAITING";
   $("runBtn").disabled=false;
   $("settingsRun").disabled=false;
-  $("runBtn").textContent=w.inCycle
-    ?"Restart cycle now"
-    :"Run cycle now";
-  $("settingsRun").textContent=w.inCycle
-    ?"Restart now"
-    :"Run now";
+  $("runBtn").textContent=w.restarting
+    ?"Restarting now…"
+    :w.inCycle
+      ?"Restart cycle now"
+      :"Run cycle now";
+  $("settingsRun").textContent=w.restarting
+    ?"Restarting now…"
+    :w.inCycle
+      ?"Restart now"
+      :"Run now";
   $("watcherText").textContent=w.paused?"Paused":w.inCycle?"Running cycle":"Active";$("lastCycleText").textContent=time(w.lastCycleAt);$("nextCycleText").textContent=time(w.nextRunAt);
   $("limitBalance").textContent=money(a.startingBalanceNis);$("limitLeverage").textContent="1 : "+l.leverage;$("limitMargin").textContent=money(l.maxMarginPerTradeNis);$("limitRisk").textContent=money(l.maxRiskPerTradeNis);$("limitDaily").textContent=money(l.maxDailyLossNis);$("limitGoal").textContent=money(l.dailyBenchmarkNis)+"/day";$("limitCycle").textContent=l.cycleMinutes+" minutes";
 
@@ -469,14 +480,45 @@ async function loadDetail(v){
   }
 }
 async function control(action){
+  if(action==="run"){
+    const wasRunning=!!state?.watcher?.inCycle||!!state?.watcher?.restarting;
+
+    $("runBtn").textContent=wasRunning?"Restarting now…":"Starting now…";
+    $("settingsRun").textContent=wasRunning?"Restarting now…":"Starting now…";
+    $("sideStatus").textContent=wasRunning?"Cancelling old cycle + restarting…":"Starting fresh cycle…";
+    $("countdown").textContent="Next cycle 15:00";
+
+    try{
+      const result=await api("/api/control/run",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"}
+      });
+
+      console.info("[QUANT] manual run accepted",result);
+
+      setTimeout(()=>refresh(),100);
+      setTimeout(()=>refresh(),700);
+    }catch(e){
+      console.error("[QUANT] manual run failed",e);
+      alert(e.message);
+      await refresh();
+    }
+    return;
+  }
+
   if(busy)return;
   busy=true;
+
   try{
-    const result=await api("/api/control/"+action,{method:"POST",headers:{"Content-Type":"application/json"}});
+    await api("/api/control/"+action,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"}
+    });
+
     await refresh();
-    if(active!=="overview"&&active!=="captures")await loadDetail(active);
-    if(action==="run"&&result?.restarted){
-      console.info("Active Quant cycle cancelled; fresh cycle started immediately");
+
+    if(active!=="overview"&&active!=="captures"){
+      await loadDetail(active);
     }
   }catch(e){
     alert(e.message);
