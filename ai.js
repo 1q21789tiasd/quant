@@ -1,6 +1,7 @@
 const fs = require("fs");
 const crypto = require("crypto");
 const config = require("./config");
+const logger = require("./logger");
 
 const API_URL = "https://api.tokun.sh/v1/responses";
 const MODEL = "openai/gpt-5.6-luna";
@@ -114,6 +115,12 @@ function imageContent(chartBuffers) {
 }
 
 async function decide({ bloodline, chartBuffers, signal }) {
+  logger.log("AI","Preparing decision request",{
+    images:Object.keys(chartBuffers||{}),
+    hasOpenPosition:!!bloodline?.openPosition,
+    balanceNis:bloodline?.account?.balanceNis
+  });
+
   if (!process.env.TOKUN_API_KEY) {
     const e = new Error("Decision service is not configured");
     e.code = "decision_unavailable";
@@ -142,6 +149,9 @@ async function decide({ bloodline, chartBuffers, signal }) {
       throw e;
     }
 
+    const requestStarted=Date.now();
+    logger.log("AI","Sending decision request");
+
     const res = await fetch(API_URL,{
       method:"POST",
       headers:{
@@ -163,6 +173,8 @@ async function decide({ bloodline, chartBuffers, signal }) {
       }),
       signal:combinedSignal
     });
+
+    logger.log("AI","Decision HTTP response received",{status:res.status,ms:Date.now()-requestStarted});
 
     if (!res.ok) {
       const raw = await res.text();
@@ -224,11 +236,21 @@ async function decide({ bloodline, chartBuffers, signal }) {
     let parsed;
     try{parsed=JSON.parse(out)}catch{throw new Error("Decision service returned invalid structured data")}
     parsed.marketState.confidence=Math.max(0,Math.min(100,Number(parsed.marketState.confidence)||0));
+
+    logger.log("AI","Structured decision parsed",{
+      bias:parsed.marketState?.bias,
+      confidence:parsed.marketState?.confidence,
+      actions:(parsed.actions||[]).map(x=>x.type),
+      inputTokens:usage?.input_tokens,
+      outputTokens:usage?.output_tokens
+    });
+
     endLog(logId,usage,null);
     return parsed;
   } catch (error) {
     if(error.name==="AbortError"){
       if(signal?.aborted){
+        logger.warn("AI","Decision request cancelled for manual restart");
         endLog(logId,null,"cancelled for manual restart");
         const e=new Error("Decision cancelled");
         e.name="AbortError";
@@ -236,12 +258,14 @@ async function decide({ bloodline, chartBuffers, signal }) {
         throw e;
       }
 
+      logger.error("AI","Decision request timed out",error);
       endLog(logId,null,"timeout");
       const e=new Error("Decision timed out");
       e.code="decision_timeout";
       throw e;
     }
 
+    logger.error("AI","Decision request failed",error);
     endLog(logId,null,error.message);
     throw error;
   } finally {
