@@ -1,114 +1,116 @@
 require("dotenv").config();
+const express=require("express");
+const path=require("path");
+const config=require("./config");
+const db=require("./db");
+const broker=require("./paperBroker");
+const watcher=require("./watcher");
+const reporter=require("./reporter");
+const events=require("./eventBus");
 
-const path = require("path");
-const express = require("express");
-const multer = require("multer");
-const { analyzeChartImage } = require("./ai");
-
-const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 12 * 1024 * 1024,
-    files: 1
-  },
-  fileFilter: (_req, file, cb) => {
-    const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
-    if (!allowed.has(file.mimetype)) {
-      const error = new Error("Only PNG, JPG and WEBP chart screenshots are supported");
-      error.status = 415;
-      return cb(error);
-    }
-    cb(null, true);
-  }
-});
-
+const app=express();
 app.disable("x-powered-by");
-app.use(express.json({ limit: "256kb" }));
-app.use(express.static(path.join(__dirname, "public"), {
-  extensions: ["html"],
-  maxAge: process.env.NODE_ENV === "production" ? "1h" : 0
-}));
+app.use(express.json({limit:"1mb"}));
 
-app.get("/", (_req, res) => {
-  res.redirect("/studio.html");
-});
-
-app.get("/api/health", (_req, res) => {
-  res.json({
-    ok: true,
-    service: "quant",
-    analysisReady: Boolean(process.env.TOKUN_API_KEY)
-  });
-});
-
-app.post("/api/analyze", upload.single("chart"), async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        error: "chart_required",
-        message: "Upload a chart screenshot first"
-      });
+if(config.DASHBOARD_PASSWORD){
+  app.use((req,res,next)=>{
+    if(req.path==="/api/health")return next();
+    const auth=req.headers.authorization||"";
+    if(auth.startsWith("Basic ")){
+      try{
+        const decoded=Buffer.from(auth.slice(6),"base64").toString("utf8");
+        const idx=decoded.indexOf(":");
+        const user=decoded.slice(0,idx),pass=decoded.slice(idx+1);
+        if(user==="quant"&&pass===config.DASHBOARD_PASSWORD)return next();
+      }catch{}
     }
+    res.set("WWW-Authenticate",'Basic realm="Quant"');
+    return res.status(401).send("Authentication required");
+  });
+}
 
-    const startedAt = Date.now();
-    const result = await analyzeChartImage({
-      buffer: req.file.buffer,
-      mimeType: req.file.mimetype,
-      note: typeof req.body.note === "string" ? req.body.note : ""
-    });
+app.use("/charts",express.static(config.CHART_DIR,{maxAge:"30m"}));
+app.use(express.static(path.join(__dirname,"public")));
 
-    res.json({
-      ok: true,
-      ...result,
-      meta: {
-        ...result.meta,
-        elapsedMs: Date.now() - startedAt
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
+app.get("/api/health",(_req,res)=>res.json({ok:true,service:"quant"}));
+
+function snapshotState(){
+  const snap=db.latestSnapshot();
+  const price=snap?.price||null;
+  const account=broker.accountSnapshot(price);
+  const openPosition=db.getOpenPosition();
+  const cycle=db.latestCycle();
+  const reports=db.listDailyReports(1);
+  return {
+    watcher:watcher.getStatus(),
+    account,
+    openPosition,
+    latestSnapshot:snap?{
+      id:snap.id,ts:snap.ts,symbol:snap.symbol,price:snap.price,chartPath:snap.chart_path,
+      frames:snap.data?.frames||{}
+    }:null,
+    latestCycle:cycle?{
+      id:cycle.id,ts:cycle.ts,status:cycle.status,trigger:cycle.trigger,
+      summary:cycle.summary,confidence:cycle.confidence,decision:cycle.decision,error:cycle.error
+    }:null,
+    today:reports[0]||null,
+    limits:{
+      leverage:config.LEVERAGE,
+      maxMarginPerTradeNis:config.MAX_MARGIN_PER_TRADE_NIS,
+      maxRiskPerTradeNis:config.MAX_RISK_PER_TRADE_NIS,
+      maxDailyLossNis:config.MAX_DAILY_LOSS_NIS,
+      dailyBenchmarkNis:config.DAILY_BENCHMARK_NIS,
+      cycleMinutes:config.CYCLE_MINUTES
+    }
+  };
+}
+
+app.get("/api/state",(_req,res)=>res.json(snapshotState()));
+app.get("/api/cycles",(req,res)=>res.json({items:db.listCycles(req.query.limit)}));
+app.get("/api/actions",(req,res)=>res.json({items:db.listActions(req.query.limit)}));
+app.get("/api/trades",(req,res)=>res.json({items:db.listPositions(req.query.limit),events:db.listPositionEvents(200)}));
+app.get("/api/reports",(req,res)=>res.json({items:db.listDailyReports(req.query.limit)}));
+app.get("/api/events",(req,res)=>res.json({items:db.listSystemEvents(req.query.limit)}));
+
+app.get("/api/stream",(req,res)=>{
+  res.set({
+    "Content-Type":"text/event-stream",
+    "Cache-Control":"no-cache",
+    Connection:"keep-alive"
+  });
+  res.flushHeaders();
+  res.write("event: ready\ndata: {}\n\n");
+  const unsub=events.subscribe(evt=>{
+    res.write("event: update\ndata: "+JSON.stringify(evt)+"\n\n");
+  });
+  const ping=setInterval(()=>res.write(": ping\n\n"),20000);
+  req.on("close",()=>{clearInterval(ping);unsub()});
 });
 
-app.use((error, _req, res, _next) => {
-  if (error instanceof multer.MulterError) {
-    const status = error.code === "LIMIT_FILE_SIZE" ? 413 : 400;
-    return res.status(status).json({
-      error: error.code,
-      message: error.code === "LIMIT_FILE_SIZE"
-        ? "Image is too large. Maximum size is 12 MB."
-        : error.message
-    });
+app.post("/api/control/run",async(_req,res)=>{
+  try{
+    const result=await watcher.runCycle("manual");
+    res.json({ok:true,cycleId:result.cycleId});
+  }catch(error){
+    res.status(409).json({ok:false,message:"Cycle could not be completed"});
   }
-
-  const status = Number(error.status) || 500;
-  console.error("[Quant]", {
-    status,
-    code: error.code,
-    message: error.message
-  });
-
-  const safeClientErrors = new Map([
-    ["chart_required", "Upload a chart screenshot first"],
-    ["LIMIT_FILE_SIZE", "Image is too large. Maximum size is 12 MB."]
-  ]);
-
-  const publicCode = status >= 500 ? "analysis_error" : (error.code || "request_error");
-  const publicMessage =
-    safeClientErrors.get(error.code) ||
-    (status >= 500
-      ? "Quant could not complete this analysis. Please try again."
-      : "The request could not be completed.");
-
-  res.status(status).json({
-    error: publicCode,
-    message: publicMessage
-  });
+});
+app.post("/api/control/pause",(_req,res)=>{watcher.pause();res.json({ok:true})});
+app.post("/api/control/resume",(_req,res)=>{watcher.resume();res.json({ok:true})});
+app.post("/api/control/reset",(req,res)=>{
+  if(req.body?.confirm!=="RESET")return res.status(400).json({ok:false,message:"Confirmation required"});
+  broker.reset();
+  res.json({ok:true});
 });
 
-app.listen(PORT, () => {
-  console.log(`Quant running on http://localhost:${PORT}`);
+app.get("/",(_req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
+
+app.use((err,req,res,next)=>{
+  console.error("[QUANT]",err);
+  if(res.headersSent)return next(err);
+  res.status(500).json({ok:false,message:"Quant could not complete the request"});
+});
+
+app.listen(config.PORT,"0.0.0.0",()=>{
+  console.log("Quant running on 0.0.0.0:"+config.PORT);
 });

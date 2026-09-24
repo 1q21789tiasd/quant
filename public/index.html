@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Quant — Bloodline</title>
+<style>
+:root{
+  --bg:#080808;--side:#090909;--panel:#0c0d0e;--panel2:#101112;--line:#1d2022;--line2:#2a2e31;
+  --text:#f1f1ef;--muted:#91969a;--muted2:#606569;--green:#67c795;--red:#df7076;--sidew:198px
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{font:12px Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}.app{min-height:100vh}.hidden{display:none!important}
+.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidew);background:var(--side);border-right:1px solid #17191b;display:flex;flex-direction:column;z-index:20}
+.brand{height:58px;display:flex;align-items:center;gap:9px;padding:0 14px;border-bottom:1px solid #17191b}
+.logo{width:23px;height:23px;border:5px solid #eee;border-radius:50%;position:relative}.logo:after{content:"";position:absolute;width:7px;height:5px;background:var(--side);right:-5px;bottom:-3px;transform:rotate(42deg)}
+.brand b{font-size:17px;letter-spacing:-.04em}.brand small{display:block;color:#555a5d;font-size:7px;letter-spacing:.13em;text-transform:uppercase;margin-top:1px}
+.nav{padding:10px 8px}.navlabel{font-size:7px;color:#4f5457;letter-spacing:.14em;text-transform:uppercase;padding:8px 9px 5px}
+.navbtn{width:100%;height:34px;border:0;border-radius:3px;background:transparent;color:#93989b;padding:0 10px;display:flex;align-items:center;gap:9px;text-align:left;cursor:pointer;font-size:10px}
+.navbtn+.navbtn{margin-top:2px}.navbtn:hover{background:#101112;color:#ddd}.navbtn.active{background:#151617;color:#fff}.navico{width:18px;text-align:center;color:#73787b;font-size:13px}
+.sidefill{flex:1}.sideinfo{padding:11px;border-top:1px solid #17191b}.live{display:flex;align-items:center;gap:7px;color:#969b9e;font-size:9px}.dot{width:6px;height:6px;border-radius:50%;background:#d9dcda}.dot.paused{background:#777}.sideinfo p{margin:6px 0 0;color:#555a5d;font-size:8px;line-height:1.45}
+.shell{margin-left:var(--sidew);min-height:100vh}.top{height:58px;position:sticky;top:0;z-index:10;background:#090909;border-bottom:1px solid #17191b;display:flex;align-items:center;padding:0 18px}
+.top h1{margin:0;font-size:13px;font-weight:620}.top p{margin:3px 0 0;color:#62676a;font-size:8px}.topright{margin-left:auto;display:flex;align-items:center;gap:6px}.countdown{color:#6f7477;font-size:8px;margin-right:7px}
+.btn{height:29px;border:1px solid #2a2d2f;border-radius:3px;background:#101112;color:#c5c8c9;padding:0 10px;font-size:9px;cursor:pointer}.btn:hover{background:#171819;border-color:#383c3e}.btn.primary{background:#e9e9e6;border-color:#e9e9e6;color:#090909;font-weight:700}.btn.primary:hover{background:#fff}.btn.danger{color:#c78d91}
+.main{max-width:1500px;margin:0 auto;padding:18px}.view{display:none}.view.active{display:block}
+.head{display:flex;align-items:flex-start;margin-bottom:15px}.head h2{margin:0;font-size:24px;letter-spacing:-.04em;font-weight:620}.head p{margin:5px 0 0;color:#686d70;font-size:9px}.headright{margin-left:auto;display:flex;gap:6px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px}.stat{background:#0b0c0d;border-top:1px solid #282b2d;border-bottom:1px solid #17191b;padding:12px;min-height:82px}.stat span{display:block;color:#606568;font-size:7px;text-transform:uppercase;letter-spacing:.07em}.stat b{display:block;font-size:21px;letter-spacing:-.035em;margin-top:8px}.stat small{display:block;color:#515659;font-size:8px;margin-top:6px}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(350px,.75fr);gap:8px}.panel{border:1px solid #1d2022;border-radius:4px;background:#0b0c0d;overflow:hidden}.ph{height:39px;border-bottom:1px solid #191c1e;display:flex;align-items:center;padding:0 11px}.ph b{font-size:9px}.ph span{margin-left:auto;color:#5f6467;font-size:8px}
+.market{padding:12px}.market-top{display:flex;align-items:flex-start}.price{font-size:28px;font-weight:630;letter-spacing:-.04em}.market-meta{color:#666b6e;font-size:8px;margin-top:4px}.chartimg{width:100%;height:330px;object-fit:contain;background:#080909;display:block;margin-top:12px;border-top:1px solid #191c1e}.emptychart{height:330px;display:grid;place-items:center;color:#5c6164;text-align:center;border-top:1px solid #191c1e;margin-top:12px}
+.position{padding:12px}.position-empty{min-height:145px;display:grid;place-items:center;color:#5f6467;text-align:center}.poshead{display:flex;align-items:flex-start}.sidebadge{font-size:24px;font-weight:650;letter-spacing:-.04em}.sidebadge.buy{color:var(--green)}.sidebadge.sell{color:var(--red)}.posmeta{margin-left:auto;text-align:right;color:#64696c;font-size:8px}.kv{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:11px}.kv div{border-top:1px solid #1a1d1f;padding:8px 0}.kv span{display:block;color:#5e6366;font-size:7px;text-transform:uppercase}.kv b{display:block;margin-top:4px;font-size:9px}
+.decision{padding:12px}.decision-title{display:flex;align-items:center}.bias{font-size:26px;font-weight:650;letter-spacing:-.04em}.bias.bullish{color:var(--green)}.bias.bearish{color:var(--red)}.conf{margin-left:auto;border:1px solid #2a2e30;border-radius:3px;padding:5px 7px;color:#a8acae;font-size:8px}.summary{margin:10px 0 0;color:#a1a5a7;font-size:9px;line-height:1.5}.action-list{margin-top:10px;border-top:1px solid #191c1e}.action{padding:8px 0;border-bottom:1px solid #181b1d;display:grid;grid-template-columns:120px 1fr 75px;gap:8px;font-size:8px}.action:last-child{border-bottom:0}.action b{font-size:8px}.status-ok{color:var(--green)}.status-bad{color:var(--red)}
+.tablewrap{margin-top:8px}.table{width:100%;border-collapse:collapse}.table th,.table td{height:33px;border-bottom:1px solid #181b1d;padding:0 10px;text-align:left;font-size:8px}.table th{color:#5d6265;text-transform:uppercase;letter-spacing:.06em;font-weight:500}.table td{color:#b4b8ba}.table tr:last-child td{border-bottom:0}.emptyrow{text-align:center!important;color:#5b6063!important;height:90px!important}
+.timeline{padding:10px 12px}.event{display:grid;grid-template-columns:92px 110px 1fr;gap:8px;border-bottom:1px solid #181b1d;padding:8px 0;font-size:8px}.event:last-child{border-bottom:0}.event time{color:#5d6265}.event b{font-size:8px}.event span{color:#8f9497}
+.frames{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:10px}.frame{border-top:1px solid #222527;padding:8px 2px}.frame span{display:block;color:#5c6164;font-size:7px}.frame b{display:block;margin-top:5px;font-size:9px}.bullish{color:var(--green)!important}.bearish{color:var(--red)!important}
+.report-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.reportcard{border:1px solid #1d2022;border-radius:4px;background:#0b0c0d;padding:12px}.reportcard span{display:block;color:#5d6265;font-size:7px;text-transform:uppercase}.reportcard b{display:block;font-size:18px;margin-top:7px}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:8px}.setting-panel{border:1px solid #1d2022;border-radius:4px;background:#0b0c0d;padding:13px}.setting-panel h3{margin:0 0 10px;font-size:10px}.srow{height:34px;border-top:1px solid #191c1e;display:flex;align-items:center;justify-content:space-between}.srow:first-of-type{border-top:0}.srow span{color:#686d70;font-size:8px}.srow b{font-size:9px}.setting-actions{display:flex;gap:6px;margin-top:12px}
+.notice{margin-top:8px;color:#53585b;font-size:8px;line-height:1.5}
+@media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.grid,.settings{grid-template-columns:1fr}.report-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){:root{--sidew:0px}.sidebar{display:none}.shell{margin-left:0}.main{padding:12px}.top{padding:0 12px}.countdown{display:none}.stats{grid-template-columns:1fr 1fr}.report-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="logo"></div><div><b>Quant</b><small>Bloodline</small></div></div>
+  <nav class="nav">
+    <div class="navlabel">Monitor</div>
+    <button class="navbtn active" data-view="overview"><span class="navico">⌂</span>Overview</button>
+    <button class="navbtn" data-view="livecycle"><span class="navico">◉</span>Live cycle</button>
+    <button class="navbtn" data-view="decisions"><span class="navico">≋</span>Decisions</button>
+    <button class="navbtn" data-view="trades"><span class="navico">↕</span>Trades</button>
+    <button class="navbtn" data-view="reports"><span class="navico">▤</span>Reports</button>
+    <div class="navlabel">System</div>
+    <button class="navbtn" data-view="settings"><span class="navico">⚙</span>Settings</button>
+  </nav>
+  <div class="sidefill"></div>
+  <div class="sideinfo"><div class="live"><i class="dot" id="sideDot"></i><span id="sideStatus">Starting…</span></div><p>Paper trading only. Every decision, action and result is stored locally on this server.</p></div>
+</aside>
+
+<main class="shell">
+<header class="top">
+  <div><h1 id="title">Overview</h1><p id="subtitle">Live paper account and Bloodline state.</p></div>
+  <div class="topright">
+    <span class="countdown" id="countdown">Next cycle —</span>
+    <button class="btn" id="pauseBtn">Pause</button>
+    <button class="btn primary" id="runBtn">Run cycle now</button>
+  </div>
+</header>
+
+<div class="main">
+<section class="view active" id="overviewView">
+  <div class="head"><div><h2 id="hello">Quant is watching.</h2><p>NASDAQ paper wallet, current setup and the last autonomous decision.</p></div></div>
+  <div class="stats">
+    <div class="stat"><span>Balance</span><b id="balance">₪—</b><small>Realized wallet balance</small></div>
+    <div class="stat"><span>Equity</span><b id="equity">₪—</b><small>Balance + unrealized P/L</small></div>
+    <div class="stat"><span>Today</span><b id="todayPnl">₪—</b><small id="goalText">Benchmark ₪40</small></div>
+    <div class="stat"><span>Open margin</span><b id="usedMargin">₪—</b><small>Maximum ₪450</small></div>
+    <div class="stat"><span>Unrealized</span><b id="unrealized">₪—</b><small>Current open position</small></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="ph"><b>NASDAQ market state</b><span id="marketTime">Waiting for first cycle</span></div>
+      <div class="market">
+        <div class="market-top"><div><div class="price" id="price">—</div><div class="market-meta" id="marketMeta">No market snapshot yet</div></div></div>
+        <div id="chartHolder"><div class="emptychart">Run the first cycle to generate the live chart.</div></div>
+      </div>
+      <div class="frames" id="frames"></div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="ph"><b>Open position</b><span id="posState">None</span></div>
+        <div class="position" id="positionBox"><div class="position-empty">No open paper position.</div></div>
+      </div>
+      <div class="panel" style="margin-top:8px">
+        <div class="ph"><b>Latest Bloodline decision</b><span id="decisionTime">—</span></div>
+        <div class="decision" id="decisionBox"><div style="color:#5e6366;font-size:9px;padding:30px 0;text-align:center">No completed decision yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel tablewrap">
+    <div class="ph"><b>Recent actions</b><span>Executed and rejected instructions</span></div>
+    <table class="table"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Details</th></tr></thead><tbody id="overviewActions"></tbody></table>
+  </div>
+</section>
+
+<section class="view" id="livecycleView">
+  <div class="head"><div><h2>Live cycle</h2><p>Watch each 15-minute Bloodline cycle and system event.</p></div></div>
+  <div class="grid">
+    <div class="panel">
+      <div class="ph"><b>Current cycle state</b><span id="cycleState">—</span></div>
+      <div class="decision" id="liveDecision"><div style="color:#5e6366;padding:35px 0;text-align:center">Waiting for a completed cycle.</div></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><b>System timeline</b><span>Newest first</span></div>
+      <div class="timeline" id="eventList"></div>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="decisionsView">
+  <div class="head"><div><h2>Decision history</h2><p>Every model cycle, its market bias, summary and requested actions.</p></div></div>
+  <div class="panel"><table class="table"><thead><tr><th>Time</th><th>Status</th><th>Bias</th><th>Confidence</th><th>Requested actions</th><th>Summary</th></tr></thead><tbody id="cycleRows"></tbody></table></div>
+</section>
+
+<section class="view" id="tradesView">
+  <div class="head"><div><h2>Trades</h2><p>Full paper position history and realized results.</p></div></div>
+  <div class="panel"><table class="table"><thead><tr><th>Opened</th><th>Side</th><th>Entry</th><th>Exit</th><th>Margin</th><th>Stop</th><th>Target</th><th>Status</th><th>Realized P/L</th></tr></thead><tbody id="tradeRows"></tbody></table></div>
+  <div class="panel" style="margin-top:8px"><div class="ph"><b>Position event log</b><span>Open / modify / close / TP / SL</span></div><table class="table"><thead><tr><th>Time</th><th>Position</th><th>Event</th><th>Price</th><th>Details</th></tr></thead><tbody id="positionEvents"></tbody></table></div>
+</section>
+
+<section class="view" id="reportsView">
+  <div class="head"><div><h2>Daily reports</h2><p>Performance evidence for improving Bloodline over time.</p></div></div>
+  <div class="report-grid" id="reportCards"></div>
+  <div class="panel" style="margin-top:8px"><table class="table"><thead><tr><th>Day</th><th>Net P/L</th><th>Trades</th><th>Win rate</th><th>Profit factor</th><th>Max drawdown</th><th>Ending balance</th></tr></thead><tbody id="reportRows"></tbody></table></div>
+</section>
+
+<section class="view" id="settingsView">
+  <div class="head"><div><h2>System controls</h2><p>Paper-account limits and watcher controls.</p></div></div>
+  <div class="settings">
+    <div class="setting-panel">
+      <h3>Risk limits</h3>
+      <div class="srow"><span>Starting balance</span><b id="limitBalance">—</b></div>
+      <div class="srow"><span>Leverage</span><b id="limitLeverage">—</b></div>
+      <div class="srow"><span>Max margin / trade</span><b id="limitMargin">—</b></div>
+      <div class="srow"><span>Max loss at stop</span><b id="limitRisk">—</b></div>
+      <div class="srow"><span>Daily-loss kill switch</span><b id="limitDaily">—</b></div>
+      <div class="srow"><span>Profit benchmark</span><b id="limitGoal">—</b></div>
+      <div class="notice">These are deterministic broker rules. The decision engine cannot override them.</div>
+    </div>
+    <div class="setting-panel">
+      <h3>Automation</h3>
+      <div class="srow"><span>Cycle interval</span><b id="limitCycle">—</b></div>
+      <div class="srow"><span>Watcher</span><b id="watcherText">—</b></div>
+      <div class="srow"><span>Last cycle</span><b id="lastCycleText">—</b></div>
+      <div class="srow"><span>Next cycle</span><b id="nextCycleText">—</b></div>
+      <div class="setting-actions"><button class="btn" id="settingsPause">Pause</button><button class="btn primary" id="settingsRun">Run now</button><button class="btn danger" id="resetBtn">Reset simulation</button></div>
+      <div class="notice">Reset permanently deletes the simulated account history from this server database.</div>
+    </div>
+  </div>
+</section>
+</div>
+</main>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  let state=null,active="overview",busy=false;
+  const titles={
+    overview:["Overview","Live paper account and Bloodline state."],
+    livecycle:["Live cycle","Current autonomous analysis and system events."],
+    decisions:["Decisions","Every completed and failed Bloodline cycle."],
+    trades:["Trades","Paper positions and execution history."],
+    reports:["Reports","Daily performance evidence."],
+    settings:["Settings","Risk limits and automation controls."]
+  };
+  function money(n){if(n===null||n===undefined||!Number.isFinite(Number(n)))return"₪—";const v=Number(n);return (v<0?"-₪":"₪")+Math.abs(v).toFixed(2)}
+  function num(n,d=2){return Number.isFinite(Number(n))?Number(n).toLocaleString(undefined,{maximumFractionDigits:d}):"—"}
+  function time(v){if(!v)return"—";const d=new Date(v);return d.toLocaleString()}
+  function short(v){if(!v)return"—";const d=new Date(v);return d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+  function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+  function clsBias(v){return String(v||"").toLowerCase()==="bullish"?"bullish":String(v||"").toLowerCase()==="bearish"?"bearish":""}
+  function empty(cols,msg){return '<tr><td class="emptyrow" colspan="'+cols+'">'+msg+'</td></tr>'}
+  function setView(v){
+    active=v;document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.view===v));
+    document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));$(v+"View").classList.add("active");
+    $("title").textContent=titles[v][0];$("subtitle").textContent=titles[v][1];
+    if(v!=="overview")loadDetail(v)
+  }
+  document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+
+  async function api(url,opts){
+    const r=await fetch(url,opts);const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.message||"Request failed");return d
+  }
+
+  function renderState(s){
+    state=s;
+    const a=s.account||{},w=s.watcher||{},l=s.limits||{},snap=s.latestSnapshot,pos=s.openPosition,cy=s.latestCycle,today=s.today;
+    $("balance").textContent=money(a.balanceNis);$("equity").textContent=money(a.equityNis);$("todayPnl").textContent=money(a.realizedPnlTodayNis);
+    $("usedMargin").textContent=money(a.usedMarginNis);$("unrealized").textContent=money(a.unrealizedPnlNis);
+    $("goalText").textContent="Benchmark "+money(l.dailyBenchmarkNis);
+    $("sideStatus").textContent=w.paused?"Watcher paused":w.inCycle?"Cycle running":"Watcher active";
+    $("sideDot").classList.toggle("paused",!!w.paused);
+    $("pauseBtn").textContent=w.paused?"Resume":"Pause";$("settingsPause").textContent=w.paused?"Resume":"Pause";
+    $("cycleState").textContent=w.inCycle?"RUNNING":w.paused?"PAUSED":"WAITING";
+    $("watcherText").textContent=w.paused?"Paused":w.inCycle?"Running cycle":"Active";
+    $("lastCycleText").textContent=time(w.lastCycleAt);$("nextCycleText").textContent=time(w.nextRunAt);
+
+    $("limitBalance").textContent=money(a.startingBalanceNis);$("limitLeverage").textContent="1 : "+l.leverage;
+    $("limitMargin").textContent=money(l.maxMarginPerTradeNis);$("limitRisk").textContent=money(l.maxRiskPerTradeNis);
+    $("limitDaily").textContent=money(l.maxDailyLossNis);$("limitGoal").textContent=money(l.dailyBenchmarkNis)+"/day";
+    $("limitCycle").textContent=l.cycleMinutes+" minutes";
+
+    if(snap){
+      $("price").textContent=num(snap.price,2);$("marketMeta").textContent=(snap.symbol||"NASDAQ")+" · latest 5m candle";$("marketTime").textContent=time(snap.ts);
+      $("chartHolder").innerHTML='<img class="chartimg" src="'+esc(snap.chartPath)+"?v="+Date.now()+'" alt="Latest generated NASDAQ chart">';
+      const order=["5m","15m","1h","4h"];
+      $("frames").innerHTML=order.map(tf=>{const f=snap.frames?.[tf]||{};return '<div class="frame"><span>'+tf+' · RSI '+num(f.rsi14,1)+'</span><b class="'+clsBias(f.trend)+'">'+esc(f.trend||"—")+'</b><span style="margin-top:4px">VWAP '+num(f.vwap,2)+' · ATR '+num(f.atr14,2)+'</span></div>'}).join("")
+    }else{
+      $("price").textContent="—";$("marketMeta").textContent="No market snapshot yet";$("marketTime").textContent="Waiting for first cycle";$("frames").innerHTML=""
+    }
+
+    if(pos){
+      const side=String(pos.side||"").toLowerCase();
+      $("posState").textContent="OPEN";
+      $("positionBox").innerHTML='<div class="poshead"><div class="sidebadge '+side+'">'+esc(pos.side)+'</div><div class="posmeta">Position #'+pos.id+'<br>Opened '+short(pos.opened_at)+'</div></div>'+
+        '<div class="kv"><div><span>Entry</span><b>'+num(pos.entry_price,2)+'</b></div><div><span>Margin</span><b>'+money(pos.margin_nis)+'</b></div>'+
+        '<div><span>Notional</span><b>'+money(pos.notional_nis)+'</b></div><div><span>Unrealized</span><b>'+money(a.unrealizedPnlNis)+'</b></div>'+
+        '<div><span>Stop loss</span><b>'+num(pos.stop_loss,2)+'</b></div><div><span>Take profit</span><b>'+num(pos.take_profit,2)+'</b></div></div>'
+    }else{$("posState").textContent="NONE";$("positionBox").innerHTML='<div class="position-empty">No open paper position.</div>'}
+
+    renderDecision(cy,"decisionBox");renderDecision(cy,"liveDecision");
+    $("decisionTime").textContent=cy?time(cy.ts):"—";
+  }
+
+  function renderDecision(cy,id){
+    const box=$(id);
+    if(!cy||!cy.decision){box.innerHTML='<div style="color:#5e6366;font-size:9px;padding:30px 0;text-align:center">No completed decision yet.</div>';return}
+    const d=cy.decision,ms=d.marketState||{},acts=d.actions||[];
+    box.innerHTML='<div class="decision-title"><div class="bias '+clsBias(ms.bias)+'">'+esc(ms.bias||"NEUTRAL")+'</div><div class="conf">'+num(ms.confidence,0)+'% setup confidence</div></div>'+
+      '<div class="market-meta">'+esc(ms.regime||"")+'</div><p class="summary">'+esc(d.summary||"")+'</p>'+
+      '<div class="action-list">'+(acts.length?acts.map(a=>'<div class="action"><b>'+esc(a.type)+'</b><span>'+esc(a.reason||"")+'</span><span>'+((a.price||a.marginNis)?esc(a.price?"@ "+num(a.price,2):money(a.marginNis)):"")+'</span></div>').join(""):'<div class="action"><b>DO_NOTHING</b><span>No operation requested.</span><span></span></div>')+'</div>'
+  }
+
+  async function refresh(){
+    try{renderState(await api("/api/state"));await loadActions()}catch(e){$("sideStatus").textContent="Connection error"}
+  }
+  async function loadActions(){
+    try{
+      const d=await api("/api/actions?limit=8"),items=d.items||[];
+      $("overviewActions").innerHTML=items.length?items.map(x=>'<tr><td>'+short(x.ts)+'</td><td>'+esc(x.type)+'</td><td class="'+(x.status==="EXECUTED"?"status-ok":"status-bad")+'">'+esc(x.status)+'</td><td>'+esc(x.message||"")+'</td></tr>').join(""):empty(4,"No actions yet.")
+    }catch{}
+  }
+  async function loadDetail(v){
+    if(v==="decisions"){
+      const d=await api("/api/cycles?limit=100"),rows=d.items||[];
+      $("cycleRows").innerHTML=rows.length?rows.map(x=>{const ms=x.decision?.marketState||{},acts=x.decision?.actions||[];return '<tr><td>'+time(x.ts)+'</td><td>'+esc(x.status)+'</td><td class="'+clsBias(ms.bias)+'">'+esc(ms.bias||"—")+'</td><td>'+num(ms.confidence,0)+'%</td><td>'+esc(acts.map(a=>a.type).join(", ")||"—")+'</td><td>'+esc(x.summary||x.error||"")+'</td></tr>'}).join(""):empty(6,"No cycles yet.")
+    }
+    if(v==="trades"){
+      const d=await api("/api/trades?limit=200"),rows=d.items||[],ev=d.events||[];
+      $("tradeRows").innerHTML=rows.length?rows.map(x=>'<tr><td>'+time(x.opened_at)+'</td><td class="'+(String(x.side).toLowerCase())+'">'+esc(x.side)+'</td><td>'+num(x.entry_price,2)+'</td><td>'+num(x.exit_price,2)+'</td><td>'+money(x.margin_nis)+'</td><td>'+num(x.stop_loss,2)+'</td><td>'+num(x.take_profit,2)+'</td><td>'+esc(x.status)+'</td><td>'+money(x.realized_pnl)+'</td></tr>').join(""):empty(9,"No positions yet.");
+      $("positionEvents").innerHTML=ev.length?ev.map(x=>'<tr><td>'+time(x.ts)+'</td><td>#'+x.position_id+'</td><td>'+esc(x.event_type)+'</td><td>'+num(x.price,2)+'</td><td>'+esc(JSON.stringify(x.details||{}))+'</td></tr>').join(""):empty(5,"No position events yet.")
+    }
+    if(v==="reports"){
+      const d=await api("/api/reports?limit=60"),rows=d.items||[],latest=rows[0];
+      $("reportCards").innerHTML=latest?[
+        ["Net P/L",money(latest.realizedPnlNis)],["Trades",latest.trades],["Win rate",num(latest.winRatePct,1)+"%"],["Max drawdown",money(latest.maxDrawdownNis)]
+      ].map(x=>'<div class="reportcard"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join(""):'<div class="reportcard"><span>Daily reports</span><b>None yet</b></div>';
+      $("reportRows").innerHTML=rows.length?rows.map(x=>'<tr><td>'+esc(x.day)+'</td><td>'+money(x.realizedPnlNis)+'</td><td>'+x.trades+'</td><td>'+num(x.winRatePct,1)+'%</td><td>'+num(x.profitFactor,2)+'</td><td>'+money(x.maxDrawdownNis)+'</td><td>'+money(x.endingBalanceNis)+'</td></tr>').join(""):empty(7,"No daily report yet.")
+    }
+    if(v==="livecycle"){
+      const d=await api("/api/events?limit=60"),rows=d.items||[];
+      $("eventList").innerHTML=rows.length?rows.map(x=>'<div class="event"><time>'+short(x.ts)+'</time><b>'+esc(x.type)+'</b><span>'+esc(x.message||"")+'</span></div>').join(""):'<div style="color:#5e6366;padding:30px;text-align:center">No events yet.</div>'
+    }
+  }
+
+  async function control(action){
+    if(busy)return;busy=true;
+    try{await api("/api/control/"+action,{method:"POST",headers:{"Content-Type":"application/json"}});await refresh();if(active!=="overview")await loadDetail(active)}
+    catch(e){alert(e.message)}finally{busy=false}
+  }
+  $("runBtn").onclick=() => control("run");$("settingsRun").onclick=()=>control("run");
+  $("pauseBtn").onclick=()=>control(state?.watcher?.paused?"resume":"pause");
+  $("settingsPause").onclick=()=>control(state?.watcher?.paused?"resume":"pause");
+  $("resetBtn").onclick=async()=>{
+    if(!confirm("Reset the entire paper account and delete all simulated history?"))return;
+    if(!confirm("This cannot be undone. Reset Quant to the starting balance?"))return;
+    try{await api("/api/control/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm:"RESET"})});await refresh();await loadDetail("settings")}catch(e){alert(e.message)}
+  };
+
+  function tick(){
+    if(!state?.watcher?.nextRunAt){$("countdown").textContent=state?.watcher?.paused?"Watcher paused":"Next cycle —";return}
+    const ms=new Date(state.watcher.nextRunAt)-Date.now();
+    if(ms<=0){$("countdown").textContent="Cycle due";return}
+    const m=Math.floor(ms/60000),s=Math.floor(ms%60000/1000);$("countdown").textContent="Next cycle "+m+":"+String(s).padStart(2,"0")
+  }
+  setInterval(tick,1000);
+  setInterval(()=>refresh(),10000);
+  try{
+    const stream=new EventSource("/api/stream");
+    stream.addEventListener("update",()=>{refresh();if(active!=="overview")loadDetail(active)});
+  }catch{}
+  refresh();
+})();
+</script>
+</body>
+</html>
