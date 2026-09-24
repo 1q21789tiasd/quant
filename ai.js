@@ -113,7 +113,7 @@ function imageContent(chartBuffers) {
   return parts;
 }
 
-async function decide({ bloodline, chartBuffers }) {
+async function decide({ bloodline, chartBuffers, signal }) {
   if (!process.env.TOKUN_API_KEY) {
     const e = new Error("Decision service is not configured");
     e.code = "decision_unavailable";
@@ -121,8 +121,14 @@ async function decide({ bloodline, chartBuffers }) {
   }
 
   const logId = beginLog(bloodline);
-  const controller = new AbortController();
-  const timeout = setTimeout(()=>controller.abort(),90000);
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(()=>{
+    timeoutController.abort(new DOMException("Decision timed out","AbortError"));
+  },90000);
+
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
 
   try {
     const content = [
@@ -155,7 +161,7 @@ async function decide({ bloodline, chartBuffers }) {
         ],
         text:{format:{type:"json_schema",name:"quant_bloodline_decision",strict:true,schema}}
       }),
-      signal:controller.signal
+      signal:combinedSignal
     });
 
     if (!res.ok) {
@@ -222,9 +228,20 @@ async function decide({ bloodline, chartBuffers }) {
     return parsed;
   } catch (error) {
     if(error.name==="AbortError"){
+      if(signal?.aborted){
+        endLog(logId,null,"cancelled for manual restart");
+        const e=new Error("Decision cancelled");
+        e.name="AbortError";
+        e.code="cycle_cancelled";
+        throw e;
+      }
+
       endLog(logId,null,"timeout");
-      const e=new Error("Decision timed out");e.code="decision_timeout";throw e;
+      const e=new Error("Decision timed out");
+      e.code="decision_timeout";
+      throw e;
     }
+
     endLog(logId,null,error.message);
     throw error;
   } finally {
