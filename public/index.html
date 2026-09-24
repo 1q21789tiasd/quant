@@ -263,7 +263,7 @@ button{font:inherit;color:inherit}
 </section>
 
 <section class="view" id="capturesView">
-  <div class="head"><div><h2>Latest captures</h2><p>The exact four TradingView screenshots used in the most recent Bloodline cycle.</p></div></div>
+  <div class="head"><div><h2>Latest captures</h2><p id="capturesCompletedAt">Waiting for the first complete 4-chart capture.</p><p>The exact four TradingView screenshots used in the most recent Bloodline cycle.</p></div></div>
   <div class="capture-grid" id="captureGrid"></div>
   <div class="panel" style="margin-top:8px">
     <div class="ph"><b id="captureTitle">Selected screenshot</b><span id="captureStatus">—</span></div>
@@ -377,8 +377,13 @@ function renderFrame(){
 }
 
 function renderCaptures(){
-  const frames=state?.latestSnapshot?.frames||{};
+  const snap=state?.latestSnapshot;
+  const frames=snap?.frames||{};
   const order=["5m","15m","1h","4h"];
+
+  $("capturesCompletedAt").textContent=snap?.ts
+    ?"All 4 screenshots completed: "+time(snap.ts)
+    :"Waiting for the first complete 4-chart capture.";
   $("captureGrid").innerHTML=order.map(tf=>{
     const f=frames[tf];
     if(!f)return'<div class="capture-card"><div class="capture-copy"><b>'+tf+'</b><span>No capture yet</span></div></div>';
