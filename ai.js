@@ -53,20 +53,21 @@ const schema = {
 
 const SYSTEM = [
   "You are Quant Bloodline, the decision engine for a PAPER-TRADING research system.",
-  "Your job is to maximize long-term simulated account growth while obeying every hard risk rule.",
+  "Your objective is long-term simulated account growth while obeying every hard risk rule.",
   "A daily profit benchmark may exist, but NEVER force a trade to hit it.",
-  "You receive deterministic market calculations, account state, previous decisions, and a freshly generated chart image.",
-  "Use all timeframes together. Prefer DO_NOTHING when there is no clean asymmetric setup.",
-  "Never assume data not present in BLOODLINE.",
+  "Your market evidence comes from fresh headless TradingView chart captures across 5m, 15m, 1h and 4h, visible legend O/H/L/C values, source status, and TradingView Technicals text when available.",
+  "Respect delayed-data or closed-market labels. Never pretend delayed data is live.",
+  "Use all timeframes together. Prefer DO_NOTHING when there is no clean asymmetric setup or when source data is incomplete.",
+  "Never assume data not present in BLOODLINE or the supplied TradingView screenshots.",
+  "Never invent hidden candles, news, fundamentals, order flow, broker quotes or indicators.",
   "Never claim certainty or guaranteed profit.",
   "You can request operations only through the allowed action schema.",
   "For OPEN_POSITION: choose BUY or SELL, marginNis <= the supplied maximum, and include a SET_STOP_LOSS action in the SAME cycle.",
-  "A target is optional, but risk must be clearly defined.",
   "Do not open a second position if one is already open.",
-  "When a position exists, actively decide whether to hold, close, partially close, or modify TP/SL.",
-  "If the setup is invalidated, prioritize closing or reducing risk.",
-  "The simulator validates every requested action and can reject unsafe operations.",
-  "Confidence is confidence in the market setup, not probability of profit.",
+  "When a position exists, decide whether to hold, close, partially close, or modify TP/SL.",
+  "If the setup is invalidated, prioritize reducing or closing risk.",
+  "The deterministic paper broker validates every requested action and may reject unsafe operations.",
+  "Confidence is confidence in the observed setup, not probability of profit.",
   "Return only the strict structured response."
 ].join("\n");
 
@@ -96,7 +97,23 @@ function endLog(id, usage, error) {
   append("\n---\n");
 }
 
-async function decide({ bloodline, chartBuffer }) {
+function imageContent(chartBuffers) {
+  const order = ["5m","15m","1h","4h"];
+  const parts = [];
+  for (const tf of order) {
+    const buffer = chartBuffers?.[tf];
+    if (!buffer) continue;
+    parts.push({type:"input_text",text:"TRADINGVIEW CHART — " + tf});
+    parts.push({
+      type:"input_image",
+      image_url:"data:image/png;base64," + buffer.toString("base64"),
+      detail:"original"
+    });
+  }
+  return parts;
+}
+
+async function decide({ bloodline, chartBuffers }) {
   if (!process.env.TOKUN_API_KEY) {
     const e = new Error("Decision service is not configured");
     e.code = "decision_unavailable";
@@ -104,11 +121,21 @@ async function decide({ bloodline, chartBuffer }) {
   }
 
   const logId = beginLog(bloodline);
-  const imageUrl = "data:image/png;base64," + chartBuffer.toString("base64");
   const controller = new AbortController();
   const timeout = setTimeout(()=>controller.abort(),90000);
 
   try {
+    const content = [
+      {type:"input_text",text:"BLOODLINE:\n" + JSON.stringify(bloodline)},
+      ...imageContent(chartBuffers)
+    ];
+
+    if (content.length < 2) {
+      const e = new Error("No chart images were captured");
+      e.code = "decision_images_missing";
+      throw e;
+    }
+
     const res = await fetch(API_URL,{
       method:"POST",
       headers:{
@@ -124,10 +151,7 @@ async function decide({ bloodline, chartBuffer }) {
         reasoning:{effort:"none"},
         input:[
           {role:"system",content:[{type:"input_text",text:SYSTEM}]},
-          {role:"user",content:[
-            {type:"input_text",text:"BLOODLINE:\n" + JSON.stringify(bloodline)},
-            {type:"input_image",image_url:imageUrl,detail:"original"}
-          ]}
+          {role:"user",content}
         ],
         text:{format:{type:"json_schema",name:"quant_bloodline_decision",strict:true,schema}}
       }),
