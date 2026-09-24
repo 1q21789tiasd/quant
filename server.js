@@ -101,13 +101,28 @@ app.get("/api/stream",(req,res)=>{
   req.on("close",()=>{clearInterval(ping);unsub()});
 });
 
-app.post("/api/control/run",async(_req,res)=>{
-  try{
-    const result=await watcher.runCycle("manual");
-    res.json({ok:true,cycleId:result.cycleId});
-  }catch(error){
-    res.status(409).json({ok:false,message:"Cycle could not be completed"});
+app.post("/api/control/run",(_req,res)=>{
+  const request=watcher.requestCycle("manual");
+
+  if(!request.accepted){
+    return res.status(202).json({
+      ok:true,
+      accepted:false,
+      alreadyRunning:true,
+      message:"Cycle already running"
+    });
   }
+
+  request.promise.catch(error=>{
+    console.error("[QUANT][MANUAL_CYCLE]",error);
+  });
+
+  return res.status(202).json({
+    ok:true,
+    accepted:true,
+    alreadyRunning:false,
+    message:"Cycle started"
+  });
 });
 
 app.post("/api/control/pause",(_req,res)=>{
