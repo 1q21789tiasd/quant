@@ -46,6 +46,133 @@ button{font:inherit;color:inherit}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:8px}.setting-panel{border:1px solid #1d2022;border-radius:4px;background:#0b0c0d;padding:13px}.setting-panel h3{margin:0 0 10px;font-size:10px}.srow{min-height:34px;border-top:1px solid #191c1e;display:flex;align-items:center;justify-content:space-between;gap:12px}.srow:first-of-type{border-top:0}.srow span{color:#686d70;font-size:8px}.srow b{font-size:9px;text-align:right}.setting-actions{display:flex;gap:6px;margin-top:12px}.notice{margin-top:8px;color:#53585b;font-size:8px;line-height:1.5}
 @media(max-width:1120px){.stats{grid-template-columns:repeat(2,1fr)}.grid,.settings{grid-template-columns:1fr}.capture-grid{grid-template-columns:1fr 1fr}.report-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){:root{--sidew:0px}.sidebar{display:none}.shell{margin-left:0}.main{padding:12px}.top{padding:0 12px}.countdown{display:none}.stats{grid-template-columns:1fr 1fr}.capture-grid{grid-template-columns:1fr 1fr}.chartimg{height:300px}.chartwrap{min-height:300px}}
+
+/* readable desktop UI */
+@media(min-width:761px){
+  :root{--sidew:232px}
+  body{font-size:14px}
+
+  .brand{height:68px;gap:11px;padding:0 18px}
+  .logo{width:26px;height:26px}
+  .brand b{font-size:20px}
+  .brand small{font-size:8px;margin-top:2px}
+
+  .nav{padding:14px 10px}
+  .navlabel{font-size:9px;padding:10px 10px 7px}
+  .navbtn{
+    height:42px;
+    border-radius:5px;
+    padding:0 12px;
+    gap:12px;
+    font-size:13px;
+    font-weight:500
+  }
+  .navbtn+.navbtn{margin-top:3px}
+  .navico{
+    width:19px;
+    height:19px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 19px;
+    color:#9ba0a3;
+    font-size:0
+  }
+  .navbtn.active .navico{color:#fff}
+  .navico svg{
+    width:18px;
+    height:18px;
+    display:block;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.7;
+    stroke-linecap:round;
+    stroke-linejoin:round
+  }
+
+  .sideinfo{padding:14px}
+  .live{font-size:11px}
+  .sideinfo p{font-size:10px;line-height:1.55}
+
+  .top{height:68px;padding:0 22px}
+  .top h1{font-size:17px}
+  .top p{font-size:10px;margin-top:4px}
+  .countdown{font-size:10px}
+  .btn{height:34px;padding:0 13px;font-size:11px;border-radius:4px}
+
+  .main{max-width:1720px;padding:22px}
+  .head{margin-bottom:18px}
+  .head h2{font-size:32px}
+  .head p{font-size:12px;margin-top:6px}
+
+  .stat{padding:15px;min-height:96px}
+  .stat span{font-size:9px}
+  .stat b{font-size:26px;margin-top:9px}
+  .stat small{font-size:10px;margin-top:7px}
+
+  .grid{grid-template-columns:minmax(0,1.38fr) minmax(390px,.62fr);gap:10px}
+  .panel{border-radius:5px}
+  .ph{height:44px;padding:0 13px}
+  .ph b{font-size:11px}
+  .ph span{font-size:10px}
+
+  .market{padding:14px}
+  .price{font-size:38px}
+  .market-meta{font-size:11px;margin-top:5px}
+  .market-status{font-size:10px;padding:7px 9px}
+  .tfbtn{height:30px;padding:0 11px;font-size:10px;border-radius:4px}
+
+  .chartwrap{min-height:540px}
+  .chartimg{height:540px}
+
+  .ohlc div{padding:9px 3px}
+  .ohlc span{font-size:9px}
+  .ohlc b{font-size:11px;margin-top:5px}
+  .tech h3{font-size:10px}
+  .tech pre{font-size:10px;line-height:1.55;max-height:180px}
+
+  .position{padding:14px}
+  .position-empty{font-size:11px}
+  .sidebadge{font-size:28px}
+  .posmeta{font-size:10px}
+  .kv span{font-size:9px}
+  .kv b{font-size:11px}
+
+  .decision{padding:14px}
+  .bias{font-size:30px}
+  .conf{font-size:10px}
+  .summary{font-size:11px;line-height:1.55}
+  .action{font-size:10px;grid-template-columns:135px 1fr 90px}
+  .action b{font-size:10px}
+
+  .table th,.table td{
+    height:40px;
+    padding:0 12px;
+    font-size:10px
+  }
+  .timeline{padding:12px 14px}
+  .event{font-size:10px;grid-template-columns:105px 125px 1fr}
+  .event b{font-size:10px}
+
+  .capture-thumb{height:155px}
+  .capture-copy{padding:10px}
+  .capture-copy b{font-size:11px}
+  .capture-copy span{font-size:10px}
+
+  .reportcard{padding:14px}
+  .reportcard span{font-size:9px}
+  .reportcard b{font-size:22px}
+
+  .setting-panel{padding:15px}
+  .setting-panel h3{font-size:12px}
+  .srow{min-height:40px}
+  .srow span{font-size:10px}
+  .srow b{font-size:11px}
+  .notice{font-size:10px}
+}
+
+
+.capture-large-img{height:720px!important}
 </style>
 </head>
 <body>
@@ -54,14 +181,14 @@ button{font:inherit;color:inherit}
   <div class="brand"><div class="logo"></div><div><b>Quant</b><small>Bloodline</small></div></div>
   <nav class="nav">
     <div class="navlabel">Monitor</div>
-    <button class="navbtn active" data-view="overview"><span class="navico">⌂</span>Overview</button>
-    <button class="navbtn" data-view="captures"><span class="navico">▣</span>Captures</button>
-    <button class="navbtn" data-view="livecycle"><span class="navico">◉</span>Live cycle</button>
-    <button class="navbtn" data-view="decisions"><span class="navico">≋</span>Decisions</button>
-    <button class="navbtn" data-view="trades"><span class="navico">↕</span>Trades</button>
-    <button class="navbtn" data-view="reports"><span class="navico">▤</span>Reports</button>
+    <button class="navbtn active" data-view="overview"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg></span>Overview</button>
+    <button class="navbtn" data-view="captures"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m20 16-4.5-4.5L8 19"/></svg></span>Captures</button>
+    <button class="navbtn" data-view="livecycle"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4V2M12 22v-2M4 12H2M22 12h-2"/></svg></span>Live cycle</button>
+    <button class="navbtn" data-view="decisions"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/></svg></span>Decisions</button>
+    <button class="navbtn" data-view="trades"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M14 3l4 4-4 4M18 17H6M10 13l-4 4 4 4"/></svg></span>Trades</button>
+    <button class="navbtn" data-view="reports"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-7"/><path d="M3 20h18"/></svg></span>Reports</button>
     <div class="navlabel">System</div>
-    <button class="navbtn" data-view="settings"><span class="navico">⚙</span>Settings</button>
+    <button class="navbtn" data-view="settings"><span class="navico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.8-1L14.4 3h-4.8l-.3 3.1a7 7 0 0 0-1.8 1l-2.4-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a7 7 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z"/></svg></span>Settings</button>
   </nav>
   <div class="sidefill"></div>
   <div class="sideinfo"><div class="live"><i class="dot" id="sideDot"></i><span id="sideStatus">Starting…</span></div><p>Headless browser capture. Paper trading only. Every decision and simulated action is stored on this server.</p></div>
@@ -265,7 +392,7 @@ function renderCaptureLarge(){
   const f=state?.latestSnapshot?.frames?.[selectedTf];
   $("captureTitle").textContent=selectedTf+" TradingView screenshot";
   $("captureStatus").textContent=f?.status||"—";
-  $("captureLarge").outerHTML=f?'<img id="captureLarge" class="chartimg" style="height:620px" src="'+esc(f.chartPath)+'?v='+encodeURIComponent(f.capturedAt||Date.now())+'">':'<div class="emptychart" id="captureLarge">No screenshot yet.</div>';
+  $("captureLarge").outerHTML=f?'<img id="captureLarge" class="chartimg capture-large-img" style="height:720px" src="'+esc(f.chartPath)+'?v='+encodeURIComponent(f.capturedAt||Date.now())+'">':'<div class="emptychart" id="captureLarge">No screenshot yet.</div>';
 }
 
 function renderDecision(cy,id){
