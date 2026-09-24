@@ -104,24 +104,20 @@ app.get("/api/stream",(req,res)=>{
 app.post("/api/control/run",(_req,res)=>{
   const request=watcher.requestCycle("manual");
 
-  if(!request.accepted){
-    return res.status(202).json({
-      ok:true,
-      accepted:false,
-      alreadyRunning:true,
-      message:"Cycle already running"
+  if(request.promise){
+    request.promise.catch(error=>{
+      console.error("[QUANT][MANUAL_CYCLE]",error);
     });
   }
-
-  request.promise.catch(error=>{
-    console.error("[QUANT][MANUAL_CYCLE]",error);
-  });
 
   return res.status(202).json({
     ok:true,
     accepted:true,
-    alreadyRunning:false,
-    message:"Cycle started"
+    queued:!!request.queued,
+    alreadyRunning:!!request.alreadyRunning,
+    message:request.queued
+      ? "Manual cycle queued; 15-minute timer reset"
+      : "Manual cycle started; 15-minute timer reset"
   });
 });
 
