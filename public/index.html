@@ -26,7 +26,7 @@ button{font:inherit;color:inherit}
 .shell{margin-left:var(--sidew);min-height:100vh}
 .top{height:58px;position:sticky;top:0;z-index:10;background:#090909;border-bottom:1px solid #17191b;display:flex;align-items:center;padding:0 18px}
 .top h1{margin:0;font-size:13px;font-weight:620}.top p{margin:3px 0 0;color:#62676a;font-size:8px}.topright{margin-left:auto;display:flex;align-items:center;gap:6px}.countdown{color:#6f7477;font-size:8px;margin-right:7px}
-.btn{height:29px;border:1px solid #2a2d2f;border-radius:3px;background:#101112;color:#c5c8c9;padding:0 10px;font-size:9px;cursor:pointer}.btn:hover{background:#171819;border-color:#383c3e}.btn.primary{background:#e9e9e6;border-color:#e9e9e6;color:#090909;font-weight:700}.btn.primary:hover{background:#fff}.btn.danger{color:#c78d91}
+.btn{height:29px;border:1px solid #2a2d2f;border-radius:3px;background:#101112;color:#c5c8c9;padding:0 10px;font-size:9px;cursor:pointer}.btn:hover{background:#171819;border-color:#383c3e}.btn:disabled{opacity:.45;cursor:not-allowed}.btn.primary{background:#e9e9e6;border-color:#e9e9e6;color:#090909;font-weight:700}.btn.primary:hover{background:#fff}.btn.danger{color:#c78d91}
 .main{max-width:1540px;margin:0 auto;padding:18px}.view{display:none}.view.active{display:block}
 .head{display:flex;align-items:flex-start;margin-bottom:15px}.head h2{margin:0;font-size:24px;letter-spacing:-.04em;font-weight:620}.head p{margin:5px 0 0;color:#686d70;font-size:9px}
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px}.stat{background:#0b0c0d;border-top:1px solid #282b2d;border-bottom:1px solid #17191b;padding:12px;min-height:82px}.stat span{display:block;color:#606568;font-size:7px;text-transform:uppercase;letter-spacing:.07em}.stat b{display:block;font-size:21px;letter-spacing:-.035em;margin-top:8px}.stat small{display:block;color:#515659;font-size:8px;margin-top:6px}
@@ -411,6 +411,10 @@ function renderState(s){
   $("usedMargin").textContent=money(a.usedMarginNis);$("unrealized").textContent=money(a.unrealizedPnlNis);$("goalText").textContent="Benchmark "+money(l.dailyBenchmarkNis);
   $("sideStatus").textContent=w.paused?"Watcher paused":w.inCycle?"Capturing + analyzing":"Watcher active";$("sideDot").classList.toggle("paused",!!w.paused);
   $("pauseBtn").textContent=w.paused?"Resume":"Pause";$("settingsPause").textContent=w.paused?"Resume":"Pause";$("cycleState").textContent=w.inCycle?"RUNNING":w.paused?"PAUSED":"WAITING";
+  $("runBtn").disabled=!!w.inCycle;
+  $("settingsRun").disabled=!!w.inCycle;
+  $("runBtn").textContent=w.inCycle?"Cycle running…":"Run cycle now";
+  $("settingsRun").textContent=w.inCycle?"Cycle running…":"Run now";
   $("watcherText").textContent=w.paused?"Paused":w.inCycle?"Running cycle":"Active";$("lastCycleText").textContent=time(w.lastCycleAt);$("nextCycleText").textContent=time(w.nextRunAt);
   $("limitBalance").textContent=money(a.startingBalanceNis);$("limitLeverage").textContent="1 : "+l.leverage;$("limitMargin").textContent=money(l.maxMarginPerTradeNis);$("limitRisk").textContent=money(l.maxRiskPerTradeNis);$("limitDaily").textContent=money(l.maxDailyLossNis);$("limitGoal").textContent=money(l.dailyBenchmarkNis)+"/day";$("limitCycle").textContent=l.cycleMinutes+" minutes";
 
@@ -461,9 +465,21 @@ async function loadDetail(v){
   }
 }
 async function control(action){
-  if(busy)return;busy=true;
-  try{await api("/api/control/"+action,{method:"POST",headers:{"Content-Type":"application/json"}});await refresh();if(active!=="overview"&&active!=="captures")await loadDetail(active)}
-  catch(e){alert(e.message)}finally{busy=false}
+  if(busy)return;
+  if(action==="run"&&state?.watcher?.inCycle)return;
+  busy=true;
+  try{
+    const result=await api("/api/control/"+action,{method:"POST",headers:{"Content-Type":"application/json"}});
+    await refresh();
+    if(active!=="overview"&&active!=="captures")await loadDetail(active);
+    if(action==="run"&&result?.alreadyRunning){
+      console.info("Quant cycle is already running");
+    }
+  }catch(e){
+    alert(e.message);
+  }finally{
+    busy=false;
+  }
 }
 $("runBtn").onclick=()=>control("run");$("settingsRun").onclick=()=>control("run");$("pauseBtn").onclick=()=>control(state?.watcher?.paused?"resume":"pause");$("settingsPause").onclick=()=>control(state?.watcher?.paused?"resume":"pause");
 $("resetBtn").onclick=async()=>{if(!confirm("Reset the paper wallet and delete all simulated history?"))return;if(!confirm("This cannot be undone. Continue?"))return;try{await api("/api/control/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm:"RESET"})});await refresh()}catch(e){alert(e.message)}};
