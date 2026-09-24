@@ -15,7 +15,8 @@ const state={
   lastCycleAt:null,
   lastError:null,
   timer:null,
-  startupQueued:false
+  startupQueued:false,
+  activeCyclePromise:null
 };
 
 function publicStatus(){
@@ -63,7 +64,11 @@ function protectiveCandle(capture){
 }
 
 async function runCycle(trigger="manual"){
-  if(state.inCycle)throw new Error("A cycle is already running");
+  if(state.inCycle){
+    const error=new Error("A cycle is already running");
+    error.code="cycle_busy";
+    throw error;
+  }
   state.inCycle=true;state.running=true;state.lastError=null;
   events.emit("cycle_start",{trigger});
   let cycleId=null;
@@ -129,10 +134,25 @@ async function runCycle(trigger="manual"){
   }
 }
 
+function requestCycle(trigger="manual"){
+  if(state.inCycle){
+    return {accepted:false,alreadyRunning:true,promise:state.activeCyclePromise};
+  }
+
+  const promise=runCycle(trigger);
+  state.activeCyclePromise=promise;
+
+  promise.finally(()=>{
+    if(state.activeCyclePromise===promise)state.activeCyclePromise=null;
+  }).catch(()=>{});
+
+  return {accepted:true,alreadyRunning:false,promise};
+}
+
 function queueStartupCycle(){
   if(!config.RUN_ON_START||state.startupQueued)return;
   state.startupQueued=true;
-  setTimeout(()=>runCycle("startup").catch(()=>{}),1800);
+  setTimeout(()=>requestCycle("startup"),1800);
 }
 
 function start(){
@@ -155,4 +175,4 @@ function resume(){start()}
 
 if(config.AUTO_START)start();
 
-module.exports={runCycle,start,pause,resume,getStatus:publicStatus};
+module.exports={runCycle,requestCycle,start,pause,resume,getStatus:publicStatus};
