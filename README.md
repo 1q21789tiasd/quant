@@ -1,31 +1,45 @@
 # Quant Bloodline
 
-Quant is a **paper-trading research system** for NASDAQ analysis. It runs an automated cycle every 15 minutes, builds deterministic multi-timeframe market calculations, generates a fresh chart image, asks the private decision engine for structured actions, validates every requested action against hard risk rules, executes them only in a simulated wallet, and stores the full history in SQLite.
+Quant is a **paper-trading research system** for NASDAQ analysis. It runs a headless Chromium browser on the server, opens TradingView, captures fresh chart images, scrapes visible chart metadata, builds the Bloodline context, asks the private decision engine for structured actions, validates every requested action against hard risk rules, and executes only in a simulated wallet.
 
 It does **not** place real-money orders.
 
-## What it does
+## Current market source
 
-- Starting paper balance: configurable, default **₪2,000**
-- Leverage simulation: configurable, default **1:40**
-- Max margin per position: configurable, default **₪450**
-- Max loss-at-stop per new trade: configurable, default **₪15**
-- Daily-loss kill switch
-- One open position maximum
-- Mandatory stop loss for a new position
-- 15-minute automated Bloodline cycle
-- 5m / 15m / 1h / 4h calculations
-- EMA 20/50/200, RSI, ATR, MACD, ADX, VWAP, relative volume, swings, support/resistance and structure
-- Fresh PNG chart generated from real OHLC data each cycle
-- Structured actions: open, close, partial close, set/move/remove TP, set/move/replace SL, or do nothing
-- SQLite persistence for snapshots, decisions, actions, positions, events and daily reports
-- Live browser dashboard over the EC2 IP
-- Server-Sent Events for immediate UI refresh
-- Full private cycle logging to `context.md`
+There is **no Twelve Data or other market-data API** in this build.
 
-The daily ₪40 value is a **benchmark**, not a forced objective. The decision prompt explicitly forbids taking a trade just to hit the benchmark.
+Quant uses Playwright in headless mode to open TradingView directly.
 
-## AWS / Ubuntu quick start
+Every cycle currently captures:
+
+- NASDAQ 100 5m chart
+- NASDAQ 100 15m chart
+- NASDAQ 100 1h chart
+- NASDAQ 100 4h chart
+- visible chart legend values such as O/H/L/C when available
+- symbol / interval / exchange
+- TradingView market status such as delayed / market closed
+- best-effort TradingView Technicals-page text for each timeframe
+- a real PNG screenshot of every chart
+
+The **latest 5m TradingView screenshot is shown directly in the Quant dashboard**, and the UI lets you switch between the four latest captured timeframes.
+
+## Paper wallet
+
+Defaults:
+
+- Starting balance: **₪2,000**
+- Leverage simulation: **1:40**
+- Max margin per position: **₪450**
+- Max loss-at-stop for a new trade: **₪15**
+- Daily-loss kill switch: **₪120**
+- Maximum open positions: **1**
+- New positions require a stop loss
+- Daily ₪40 value is a benchmark only — never a forced target
+
+All limits are configurable in `.env`.
+
+## AWS / Ubuntu 24.04
 
 ```bash
 git clone https://github.com/1q21789tiasd/quant.git
@@ -35,6 +49,11 @@ cp .env.example .env
 nano .env
 
 npm install
+
+# Install Chromium + Linux packages Playwright needs.
+sudo npx playwright install-deps chromium
+npx playwright install chromium
+
 npm start
 ```
 
@@ -44,16 +63,95 @@ Open:
 http://YOUR_EC2_PUBLIC_IP:3000
 ```
 
-Allow inbound TCP port **3000** in the EC2 security group, or put Nginx/Caddy in front of it.
+Allow inbound TCP 3000 in the EC2 security group, or put Nginx/Caddy in front of it.
 
-For a public IP, set `DASHBOARD_PASSWORD` in `.env`. The browser will prompt for Basic Auth:
+For a public IP, set `DASHBOARD_PASSWORD`. Browser login:
 
 - username: `quant`
-- password: the value of `DASHBOARD_PASSWORD`
+- password: your `DASHBOARD_PASSWORD`
 
-## Run with systemd
+## Headless TradingView session
 
-Adjust the paths or user in `deploy/quant.service` if needed.
+Chromium is launched with:
+
+```text
+headless: true
+--no-sandbox
+--disable-setuid-sandbox
+--disable-dev-shm-usage
+```
+
+By default Quant uses public TradingView pages.
+
+If you later want to reuse a logged-in TradingView browser state, export a Playwright storage-state JSON file on the server and set:
+
+```env
+TRADINGVIEW_STORAGE_STATE=/home/ubuntu/quant/private/tradingview-state.json
+```
+
+Do **not** commit that file.
+
+## Runtime flow
+
+```text
+Every 15 minutes
+      ↓
+Headless Chromium
+      ↓
+TradingView 5m / 15m / 1h / 4h
+      ↓
+Real screenshots + visible O/H/L/C + TradingView technicals text
+      ↓
+Bloodline account + position + previous decisions
+      ↓
+private structured decision
+      ↓
+paperBroker.js validates actions
+      ↓
+simulated execution
+      ↓
+SQLite + context.md + live dashboard
+```
+
+## Database
+
+SQLite is created automatically at:
+
+```text
+data/quant.db
+```
+
+It stores:
+
+- market snapshots
+- screenshot metadata
+- every Bloodline cycle
+- raw structured decision JSON
+- every requested action
+- executed and rejected actions
+- open and closed positions
+- TP / SL changes
+- realized P/L
+- daily reports
+- system events
+
+Generated TradingView screenshots are stored in:
+
+```text
+data/charts/
+```
+
+The complete Bloodline input plus every streamed model output delta is logged to:
+
+```text
+context.md
+```
+
+These runtime files are ignored by Git.
+
+## Run continuously with systemd
+
+Adjust the path/user in `deploy/quant.service` if needed:
 
 ```bash
 sudo cp deploy/quant.service /etc/systemd/system/quant.service
@@ -68,40 +166,8 @@ Logs:
 journalctl -u quant -f
 ```
 
-## Data
+## Important source limitation
 
-Runtime data is intentionally not committed:
+TradingView may show delayed market data depending on the symbol, session and account. Quant stores and shows TradingView's visible source-status label and the decision engine is instructed to respect it.
 
-```text
-data/quant.db
-data/charts/*.png
-context.md
-```
-
-The SQLite database is created automatically.
-
-## Market feed
-
-The current implementation requests real 5-minute OHLC data from Twelve Data and derives 15m, 1h and 4h frames locally. Set:
-
-```env
-TWELVE_DATA_API_KEY=...
-MARKET_SYMBOL=NDX
-```
-
-Use a provider-supported NASDAQ instrument symbol that matches the market you intend to simulate. A broker CFD quote can differ from a cash index or futures feed, so this paper engine should not be treated as an exact Plus500 execution replica.
-
-## Safety architecture
-
-The private decision engine cannot directly modify money or positions. It returns JSON instructions. `paperBroker.js` validates and executes them.
-
-Examples of hard rejections:
-
-- margin above the configured maximum
-- second simultaneous position
-- opening without a stop loss
-- stop loss on the wrong side
-- stop distance exceeding the maximum simulated loss
-- new trades after the daily-loss kill switch triggers
-
-This separation is intentional: model output is advisory to the simulator; the deterministic broker owns account state.
+This paper simulator also approximates Plus500-style leveraged exposure; it is not an exact reproduction of Plus500 CFD contract pricing or execution.
