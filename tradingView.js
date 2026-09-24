@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
 const config = require("./config");
+const logger = require("./logger");
 
 let browserPromise = null;
 
@@ -19,6 +20,7 @@ function n(v) {
 
 async function getBrowser() {
   if (!browserPromise) {
+    logger.log("PLAYWRIGHT","Launching headless Chromium",{viewport:"1920x1080"});
     browserPromise = chromium.launch({
       headless: true,
       args: [
@@ -27,8 +29,12 @@ async function getBrowser() {
         "--disable-dev-shm-usage",
         "--disable-gpu"
       ]
+    }).then(browser => {
+      logger.log("PLAYWRIGHT","Chromium launched");
+      return browser;
     }).catch(error => {
       browserPromise = null;
+      logger.error("PLAYWRIGHT","Chromium launch failed",error);
       throw error;
     });
   }
@@ -149,7 +155,15 @@ async function waitForChart(page) {
   await page.waitForTimeout(config.TRADINGVIEW_SETTLE_MS);
 }
 
-async function captureFrame(page, label, interval) {
+async function captureFrame(page, label, interval, signal) {
+  if(signal?.aborted){
+    const e=new Error("TradingView capture cancelled");
+    e.name="AbortError";e.code="cycle_cancelled";throw e;
+  }
+
+  logger.log("PLAYWRIGHT","Loading TradingView chart",{timeframe:label,interval});
+  const started=Date.now();
+
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto(chartUrl(interval), { waitUntil: "domcontentloaded", timeout: 60000 });
   await dismissNoise(page);
@@ -201,6 +215,15 @@ async function captureFrame(page, label, interval) {
     await page.screenshot({ path: fullPath, fullPage: false });
   }
 
+  logger.log("PLAYWRIGHT","Chart screenshot saved",{
+    timeframe:label,
+    price,
+    ohlc,
+    captureSize,
+    file:filename,
+    ms:Date.now()-started
+  });
+
   return {
     label,
     requestedInterval: String(interval),
@@ -231,18 +254,28 @@ function technicalExcerpt(raw) {
   return lines.filter(x => interesting.test(x)).slice(0, 180);
 }
 
-async function scrapeTechnicals(page, intervalName) {
+async function scrapeTechnicals(page, intervalName, signal) {
   try {
+    if(signal?.aborted){
+      const e=new Error("Technicals capture cancelled");
+      e.name="AbortError";e.code="cycle_cancelled";throw e;
+    }
+
+    logger.log("PLAYWRIGHT","Loading TradingView technicals",{timeframe:intervalName});
     await page.goto(technicalsUrl(intervalName), { waitUntil: "domcontentloaded", timeout: 60000 });
     await dismissNoise(page);
     await page.waitForTimeout(3500);
     const raw = await page.locator("body").innerText({ timeout: 10000 });
+    const lines=technicalExcerpt(raw);
+    logger.log("PLAYWRIGHT","Technicals captured",{timeframe:intervalName,lines:lines.length});
     return {
       url: page.url(),
       capturedAt: new Date().toISOString(),
-      lines: technicalExcerpt(raw)
+      lines
     };
   } catch (error) {
+    if(signal?.aborted||error?.name==="AbortError")throw error;
+    logger.warn("PLAYWRIGHT","Technicals page could not be read",{timeframe:intervalName,message:error.message});
     return {
       url: technicalsUrl(intervalName),
       capturedAt: new Date().toISOString(),
@@ -253,6 +286,7 @@ async function scrapeTechnicals(page, intervalName) {
 }
 
 async function captureMarket({ signal } = {}) {
+  logger.log("PLAYWRIGHT","Starting TradingView capture session");
   const context = await newContext();
 
   const abortCapture = () => {
@@ -287,17 +321,28 @@ async function captureMarket({ signal } = {}) {
       let lastError;
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          frame = await captureFrame(chartPage, label, interval);
+          if(signal?.aborted){
+            const e=new Error("TradingView capture cancelled");
+            e.name="AbortError";e.code="cycle_cancelled";throw e;
+          }
+
+          frame = await captureFrame(chartPage, label, interval, signal);
           break;
         } catch (error) {
           lastError = error;
+          if(signal?.aborted||error?.name==="AbortError")throw error;
+          logger.warn("PLAYWRIGHT","Chart capture attempt failed",{
+            timeframe:label,
+            attempt,
+            message:error.message
+          });
           if (attempt < 2) await chartPage.waitForTimeout(2000);
         }
       }
       if (!frame) throw lastError || new Error("TradingView chart capture failed");
 
       const technicals = config.TRADINGVIEW_SCRAPE_TECHNICALS
-        ? await scrapeTechnicals(techPage, technicalInterval)
+        ? await scrapeTechnicals(techPage, technicalInterval, signal)
         : { lines: [] };
 
       images[label] = frame.buffer;
@@ -326,6 +371,11 @@ async function captureMarket({ signal } = {}) {
       throw e;
     }
 
+    logger.log("PLAYWRIGHT","TradingView capture session complete",{
+      price:Number(price),
+      timeframes:Object.keys(frames)
+    });
+
     return {
       source: "TradingView",
       symbol: config.TRADINGVIEW_SYMBOL,
@@ -338,11 +388,13 @@ async function captureMarket({ signal } = {}) {
     };
   } catch (error) {
     if (signal?.aborted) {
+      logger.warn("PLAYWRIGHT","TradingView capture session cancelled");
       const cancelled = new Error("TradingView capture cancelled");
       cancelled.name = "AbortError";
       cancelled.code = "cycle_cancelled";
       throw cancelled;
     }
+    logger.error("PLAYWRIGHT","TradingView capture session failed",error);
     throw error;
   } finally {
     signal?.removeEventListener("abort", abortCapture);
