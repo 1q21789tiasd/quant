@@ -7,6 +7,7 @@ const broker=require("./paperBroker");
 const watcher=require("./watcher");
 const tradingView=require("./tradingView");
 const events=require("./eventBus");
+const logger=require("./logger");
 
 const app=express();
 app.disable("x-powered-by");
@@ -101,28 +102,33 @@ app.get("/api/stream",(req,res)=>{
   req.on("close",()=>{clearInterval(ping);unsub()});
 });
 
-app.post("/api/control/run",async(_req,res)=>{
-  try{
-    const request=await watcher.requestCycle("manual");
+app.post("/api/control/run",(req,res)=>{
+  const startedAt=Date.now();
+  logger.log("HTTP","POST /api/control/run received",{
+    ip:req.ip,
+    current:watcher.getStatus()
+  });
 
-    if(request.promise){
-      request.promise.catch(error=>{
-        if(error?.code!=="cycle_cancelled"){
-          console.error("[QUANT][MANUAL_CYCLE]",error);
-        }
-      });
-    }
+  try{
+    const request=watcher.requestCycle("manual");
+
+    logger.log("HTTP","Manual cycle request accepted immediately",{
+      restarted:!!request.restarted,
+      generation:request.generation,
+      responseMs:Date.now()-startedAt
+    });
 
     return res.status(202).json({
       ok:true,
       accepted:true,
       restarted:!!request.restarted,
+      generation:request.generation,
       message:request.restarted
-        ? "Active cycle cancelled and fresh manual cycle started; 15-minute timer reset"
-        : "Fresh manual cycle started; 15-minute timer reset"
+        ? "Cancelling active cycle and starting fresh now"
+        : "Fresh manual cycle starting now"
     });
   }catch(error){
-    console.error("[QUANT][MANUAL_RESTART]",error);
+    logger.error("HTTP","Manual cycle request failed before start",error);
     return res.status(500).json({
       ok:false,
       message:"Fresh cycle could not be started"
@@ -157,11 +163,17 @@ app.use((err,req,res,next)=>{
 });
 
 const server=app.listen(config.PORT,"0.0.0.0",()=>{
-  console.log("Quant running on 0.0.0.0:"+config.PORT);
+  logger.log("SERVER","Quant listening",{
+    address:"0.0.0.0",
+    port:config.PORT,
+    autoStart:config.AUTO_START,
+    runOnStart:config.RUN_ON_START,
+    cycleMinutes:config.CYCLE_MINUTES
+  });
 });
 
 async function shutdown(signal){
-  console.log("Shutting down:",signal);
+  logger.log("SERVER","Shutting down",{signal});
   watcher.pause();
   await tradingView.closeBrowser().catch(()=>{});
   server.close(()=>process.exit(0));
