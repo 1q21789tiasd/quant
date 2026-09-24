@@ -1,7 +1,6 @@
 const config=require("./config");
 const db=require("./db");
-const market=require("./market");
-const chart=require("./chart");
+const tradingView=require("./tradingView");
 const {buildBloodline}=require("./bloodline");
 const ai=require("./ai");
 const broker=require("./paperBroker");
@@ -15,7 +14,8 @@ const state={
   nextRunAt:null,
   lastCycleAt:null,
   lastError:null,
-  timer:null
+  timer:null,
+  startupQueued:false
 };
 
 function publicStatus(){
@@ -48,6 +48,20 @@ function schedule(){
   events.emit("watcher",publicStatus());
 }
 
+function protectiveCandle(capture){
+  const frame=capture.frames?.["5m"];
+  const o=frame?.ohlc||{};
+  if(!Number.isFinite(Number(o.high))||!Number.isFinite(Number(o.low)))return null;
+  return {
+    ts:frame.capturedAt||capture.capturedAt,
+    open:Number(o.open)||Number(capture.price),
+    high:Number(o.high),
+    low:Number(o.low),
+    close:Number(o.close)||Number(capture.price),
+    volume:0
+  };
+}
+
 async function runCycle(trigger="manual"){
   if(state.inCycle)throw new Error("A cycle is already running");
   state.inCycle=true;state.running=true;state.lastError=null;
@@ -55,43 +69,52 @@ async function runCycle(trigger="manual"){
   let cycleId=null;
 
   try{
-    const m=await market.getMarketState();
-    const rendered=await chart.renderChart(m);
+    const capture=await tradingView.captureMarket();
+    const main=capture.frames["5m"];
+
     const snapshotId=db.insertSnapshot({
-      ts:m.ts,
-      symbol:m.symbol,
-      price:m.price,
-      chartPath:rendered.publicPath,
+      ts:capture.capturedAt,
+      symbol:capture.symbol,
+      price:capture.price,
+      chartPath:main.chartPath,
       data:{
-        name:m.name,
-        frames:m.frames,
-        recentCandles:{
-          "5m":m.candles["5m"].slice(-120),
-          "15m":m.candles["15m"].slice(-100),
-          "1h":m.candles["1h"].slice(-80),
-          "4h":m.candles["4h"].slice(-60)
-        }
+        source:capture.source,
+        name:capture.name,
+        status:capture.status,
+        frames:capture.frames
       }
     });
 
     cycleId=db.createCycle({trigger,snapshotId});
-    broker.processProtectiveOrders(m.candles["5m"],cycleId);
 
-    const accountBefore=broker.accountSnapshot(m.price);
+    const candle=protectiveCandle(capture);
+    if(candle)broker.processProtectiveOrders([candle],cycleId);
+
+    const accountBefore=broker.accountSnapshot(capture.price);
     const openBefore=db.getOpenPosition();
-    const bloodline=buildBloodline({market:m,account:accountBefore,openPosition:openBefore});
+    const bloodline=buildBloodline({
+      market:capture,
+      account:accountBefore,
+      openPosition:openBefore
+    });
     db.updateCycleInputs(cycleId,accountBefore,bloodline);
 
-    const decision=await ai.decide({bloodline,chartBuffer:rendered.buffer});
-    const execution=broker.executePlan(decision,m.price,cycleId);
+    const decision=await ai.decide({
+      bloodline,
+      chartBuffers:capture.images
+    });
+
+    const execution=broker.executePlan(decision,capture.price,cycleId);
     db.completeCycle(cycleId,{...decision,execution});
 
-    const accountAfter=broker.accountSnapshot(m.price);
+    const accountAfter=broker.accountSnapshot(capture.price);
     reporter.updateDailyReport(accountAfter);
 
     state.lastCycleAt=new Date().toISOString();
     state.lastError=null;
-    db.systemEvent("CYCLE_COMPLETE","Bloodline cycle completed",{cycleId,trigger,price:m.price});
+    db.systemEvent("CYCLE_COMPLETE","Bloodline cycle completed",{
+      cycleId,trigger,price:capture.price,source:"TradingView"
+    });
     events.emit("cycle_complete",{cycleId,trigger,decision,execution});
     return {cycleId,decision,execution};
   }catch(error){
@@ -106,9 +129,20 @@ async function runCycle(trigger="manual"){
   }
 }
 
+function queueStartupCycle(){
+  if(!config.RUN_ON_START||state.startupQueued)return;
+  state.startupQueued=true;
+  setTimeout(()=>runCycle("startup").catch(()=>{}),1800);
+}
+
 function start(){
-  state.paused=false;state.running=true;schedule();
-  db.systemEvent("WATCHER_STARTED","Watcher started",{cycleMinutes:config.CYCLE_MINUTES});
+  state.paused=false;state.running=true;
+  schedule();
+  queueStartupCycle();
+  db.systemEvent("WATCHER_STARTED","Watcher started",{
+    cycleMinutes:config.CYCLE_MINUTES,
+    source:"TradingView"
+  });
 }
 function pause(){
   state.paused=true;state.running=false;
