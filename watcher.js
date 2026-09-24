@@ -17,7 +17,9 @@ const state={
   timer:null,
   startupQueued:false,
   activeCyclePromise:null,
-  manualQueued:false
+  activeAbortController:null,
+  activeTrigger:null,
+  restartPromise:null
 };
 
 function publicStatus(){
@@ -25,10 +27,10 @@ function publicStatus(){
     running:state.running,
     paused:state.paused,
     inCycle:state.inCycle,
-    manualQueued:state.manualQueued,
     nextRunAt:state.nextRunAt,
     lastCycleAt:state.lastCycleAt,
-    lastError:state.lastError
+    lastError:state.lastError,
+    activeTrigger:state.activeTrigger
   };
 }
 
@@ -50,8 +52,8 @@ function scheduleFromNow(){
     return;
   }
 
-  const next=new Date(Date.now()+intervalMs());
-  state.nextRunAt=next.toISOString();
+  const delay=intervalMs();
+  state.nextRunAt=new Date(Date.now()+delay).toISOString();
 
   state.timer=setTimeout(()=>{
     state.timer=null;
@@ -60,7 +62,6 @@ function scheduleFromNow(){
     if(state.paused)return;
 
     if(state.inCycle){
-      db.systemEvent("SCHEDULE_SKIPPED","Scheduled cycle delayed because another cycle is active");
       scheduleFromNow();
       return;
     }
@@ -69,7 +70,7 @@ function scheduleFromNow(){
     promise.finally(()=>{
       if(!state.paused)scheduleFromNow();
     }).catch(()=>{});
-  },intervalMs());
+  },delay);
 
   events.emit("watcher",publicStatus());
 }
@@ -78,6 +79,7 @@ function protectiveCandle(capture){
   const frame=capture.frames?.["5m"];
   const o=frame?.ohlc||{};
   if(!Number.isFinite(Number(o.high))||!Number.isFinite(Number(o.low)))return null;
+
   return {
     ts:frame.capturedAt||capture.capturedAt,
     open:Number(o.open)||Number(capture.price),
@@ -88,7 +90,22 @@ function protectiveCandle(capture){
   };
 }
 
-async function runCycle(trigger="manual"){
+function abortError(message="Cycle cancelled"){
+  const error=new Error(message);
+  error.name="AbortError";
+  error.code="cycle_cancelled";
+  return error;
+}
+
+function throwIfAborted(signal){
+  if(signal?.aborted){
+    throw signal.reason instanceof Error
+      ? signal.reason
+      : abortError("Cycle cancelled");
+  }
+}
+
+async function runCycle(trigger="manual",signal){
   if(state.inCycle){
     const error=new Error("A cycle is already running");
     error.code="cycle_busy";
@@ -97,14 +114,20 @@ async function runCycle(trigger="manual"){
 
   state.inCycle=true;
   state.running=true;
+  state.activeTrigger=trigger;
   state.lastError=null;
+
   events.emit("cycle_start",{trigger});
   events.emit("watcher",publicStatus());
 
   let cycleId=null;
 
   try{
-    const capture=await tradingView.captureMarket();
+    throwIfAborted(signal);
+
+    const capture=await tradingView.captureMarket({signal});
+    throwIfAborted(signal);
+
     const main=capture.frames["5m"];
 
     const snapshotId=db.insertSnapshot({
@@ -122,22 +145,31 @@ async function runCycle(trigger="manual"){
 
     cycleId=db.createCycle({trigger,snapshotId});
 
+    throwIfAborted(signal);
+
     const candle=protectiveCandle(capture);
     if(candle)broker.processProtectiveOrders([candle],cycleId);
 
     const accountBefore=broker.accountSnapshot(capture.price);
     const openBefore=db.getOpenPosition();
+
     const bloodline=buildBloodline({
       market:capture,
       account:accountBefore,
       openPosition:openBefore
     });
+
     db.updateCycleInputs(cycleId,accountBefore,bloodline);
+
+    throwIfAborted(signal);
 
     const decision=await ai.decide({
       bloodline,
-      chartBuffers:capture.images
+      chartBuffers:capture.images,
+      signal
     });
+
+    throwIfAborted(signal);
 
     const execution=broker.executePlan(decision,capture.price,cycleId);
     db.completeCycle(cycleId,{...decision,execution});
@@ -158,6 +190,24 @@ async function runCycle(trigger="manual"){
     events.emit("cycle_complete",{cycleId,trigger,decision,execution});
     return {cycleId,decision,execution};
   }catch(error){
+    const cancelled=
+      signal?.aborted ||
+      error?.name==="AbortError" ||
+      error?.code==="cycle_cancelled";
+
+    if(cancelled){
+      if(cycleId)db.failCycle(cycleId,"Cancelled for fresh manual restart");
+
+      db.systemEvent(
+        "CYCLE_CANCELLED",
+        "Active cycle cancelled for a fresh manual restart",
+        {cycleId,trigger}
+      );
+
+      events.emit("cycle_cancelled",{cycleId,trigger});
+      throw abortError("Cycle cancelled for manual restart");
+    }
+
     const message=String(error.privateMessage||error.message||"Cycle failed");
     state.lastError=message;
 
@@ -168,78 +218,90 @@ async function runCycle(trigger="manual"){
     throw error;
   }finally{
     state.inCycle=false;
+    state.activeTrigger=null;
     state.running=!state.paused;
     events.emit("watcher",publicStatus());
   }
 }
 
 function startTrackedCycle(trigger){
-  const promise=runCycle(trigger);
+  const controller=new AbortController();
+  state.activeAbortController=controller;
+
+  const promise=runCycle(trigger,controller.signal);
   state.activeCyclePromise=promise;
 
   promise.finally(()=>{
-    if(state.activeCyclePromise===promise)state.activeCyclePromise=null;
-
-    if(state.manualQueued){
-      state.manualQueued=false;
-
-      if(!state.paused){
-        // The queued manual cycle becomes the new 15-minute anchor.
-        scheduleFromNow();
-      }
-
-      db.systemEvent("MANUAL_CYCLE_DEQUEUED","Queued manual cycle is starting now");
-      events.emit("watcher",publicStatus());
-
-      setTimeout(()=>{
-        if(!state.inCycle){
-          startTrackedCycle("manual").catch(()=>{});
-        }
-      },50);
+    if(state.activeCyclePromise===promise){
+      state.activeCyclePromise=null;
+      state.activeAbortController=null;
     }
   }).catch(()=>{});
 
   return promise;
 }
 
-function requestCycle(trigger="manual"){
-  if(trigger==="manual"){
-    // A manual click always resets the next automatic cycle to 15 minutes from now.
+async function restartManualCycle(){
+  if(state.restartPromise)return state.restartPromise;
+
+  state.restartPromise=(async()=>{
+    // Manual run becomes the new automatic 15-minute anchor.
     if(!state.paused)scheduleFromNow();
 
-    if(state.inCycle){
-      const newlyQueued=!state.manualQueued;
-      state.manualQueued=true;
+    const hadActive=!!state.activeCyclePromise;
 
-      if(newlyQueued){
-        db.systemEvent("MANUAL_CYCLE_QUEUED","Manual cycle queued behind the active cycle");
-      }
+    if(hadActive){
+      db.systemEvent(
+        "MANUAL_RESTART",
+        "Manual run requested; cancelling the active cycle and starting fresh"
+      );
 
-      events.emit("watcher",publicStatus());
+      try{
+        state.activeAbortController?.abort(
+          abortError("Manual restart requested")
+        );
+      }catch{}
 
-      return {
-        accepted:true,
-        queued:true,
-        alreadyRunning:true,
-        promise:state.activeCyclePromise
-      };
+      try{
+        await state.activeCyclePromise;
+      }catch{}
     }
-  }else if(state.inCycle){
+
+    const promise=startTrackedCycle("manual");
+
+    return {
+      accepted:true,
+      restarted:hadActive,
+      promise
+    };
+  })();
+
+  try{
+    return await state.restartPromise;
+  }finally{
+    state.restartPromise=null;
+  }
+}
+
+async function requestCycle(trigger="manual"){
+  if(trigger==="manual"){
+    return restartManualCycle();
+  }
+
+  if(state.inCycle){
     return {
       accepted:false,
-      queued:false,
+      restarted:false,
       alreadyRunning:true,
       promise:state.activeCyclePromise
     };
   }
 
-  const promise=startTrackedCycle(trigger);
-
   return {
     accepted:true,
-    queued:false,
+    restarted:false,
     alreadyRunning:false,
-    promise
+    promise:startTrackedCycle(trigger)
   };
 }
 
@@ -267,7 +329,6 @@ function start(){
 function pause(){
   state.paused=true;
   state.running=false;
-  state.manualQueued=false;
   clearSchedule();
   state.nextRunAt=null;
 
