@@ -1,9 +1,17 @@
 {
-  "name": "quant-nq-research",
-  "version": "2.0.0",
+  "name": "quant-nq-paper",
+  "version": "3.0.0",
+  "description": "CME NQ historical research & deterministic paper trader (no broker)",
   "private": true,
-  "description": "NQ1! futures opening-range research and local paper backtesting",
   "type": "commonjs",
-  "engines": {"node": ">=22"},
-  "scripts": {"start": "node server.js", "test": "node --test test/*.test.js", "check": "node --check server.js && node --check strategy.js && node --check market.js"}
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "check": "node --check server.js && node --check engine.js && node --check massive.js && node --check strategy.js && node --check market.js",
+    "download": "node scripts/download.js",
+    "sync": "node scripts/sync.js"
+  }
 }
