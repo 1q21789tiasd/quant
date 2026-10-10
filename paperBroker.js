@@ -105,6 +105,12 @@ function validatePriceForTarget(position,price){
 }
 
 function openPosition(action,decision,currentPrice,cycleId){
+  // CME NQ1! is a futures continuous chart, not a CFD or stock.
+  // The legacy margin*leverage percentage-PnL broker must never fake NQ orders.
+  if(/^CME_MINI:(?:NQ|MNQ)1!$/i.test(String(config.TRADINGVIEW_SYMBOL||""))){
+    return {ok:false,message:"Futures paper trading disabled in legacy CFD simulator: NQ1! requires an exchange-priced contract, $/point multiplier, dated expiry, and live licensed quotes"};
+  }
+
   if(db.getOpenPosition())return {ok:false,message:"An open position already exists"};
 
   const snap=accountSnapshot(currentPrice);

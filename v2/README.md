@@ -71,3 +71,6 @@ Broker-native simulated order placement, new dashboard integration, streaming We
 - Real-time NQ strategy automation requires actual CME-licensed NQ market data from a properly connected broker/data provider. There is currently **no verified unlimited free real-time CME NQ API** in this project.
 - The original Quant screenshot AI paper simulator is *not* futures-correct (stock/CFD-style margin and spread model), so `AUTO_START=false` and `RUN_ON_START=false` are now the safe defaults.
 - Source: https://www.tradingview.com/data-coverage/ and https://www.tradingview.com/support/solutions/43000483493-what-are-1-and-2-continuous-futures-contracts/
+
+### Protection against legacy futures mispricing
+The old `paperBroker.js` now refuses new NQ1!/MNQ1! simulated entries; its percentage-PnL CFD formula cannot model CME contract multipliers. The original `.env` (if one already exists) overrides `config.js` and `.env.example`: change `TRADINGVIEW_SYMBOL=CME_MINI:NQ1!` and set `AUTO_START=false`, `RUN_ON_START=false` explicitly. The saved TradingView chart layout may require TradingView login/browser storage-state and may still contain delayed quotes. Neither the local paper P&L nor the screenshot collector is a substitute for properly sourced futures data.
