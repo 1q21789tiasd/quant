@@ -18,12 +18,12 @@ module.exports = {
   SPREAD_POINTS: Number(process.env.SPREAD_POINTS || 1.8),
 
   CYCLE_MINUTES: Number(process.env.CYCLE_MINUTES || 15),
-  AUTO_START: String(process.env.AUTO_START || "true").toLowerCase() === "true",
-  RUN_ON_START: String(process.env.RUN_ON_START || "true").toLowerCase() === "true",
+  AUTO_START: String(process.env.AUTO_START || "false").toLowerCase() === "true",
+  RUN_ON_START: String(process.env.RUN_ON_START || "false").toLowerCase() === "true",
 
-  MARKET_DISPLAY_NAME: process.env.MARKET_DISPLAY_NAME || "NASDAQ 100",
-  TRADINGVIEW_SYMBOL: process.env.TRADINGVIEW_SYMBOL || "NASDAQ:NDX",
-  TRADINGVIEW_CHART_URL: process.env.TRADINGVIEW_CHART_URL || "https://www.tradingview.com/chart/",
+  MARKET_DISPLAY_NAME: process.env.MARKET_DISPLAY_NAME || "E-mini Nasdaq-100 Futures (NQ1!)",
+  TRADINGVIEW_SYMBOL: process.env.TRADINGVIEW_SYMBOL || "CME_MINI:NQ1!",
+  TRADINGVIEW_CHART_URL: process.env.TRADINGVIEW_CHART_URL || "https://www.tradingview.com/chart/Q2Yhm4MH/",
   TRADINGVIEW_TECHNICALS_URL: process.env.TRADINGVIEW_TECHNICALS_URL || "",
   TRADINGVIEW_STORAGE_STATE: process.env.TRADINGVIEW_STORAGE_STATE || "",
   TRADINGVIEW_SETTLE_MS: Number(process.env.TRADINGVIEW_SETTLE_MS || 4500),

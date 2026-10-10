@@ -4,7 +4,7 @@ require('dotenv').config();
 const fs=require('node:fs'),path=require('node:path');
 const {AlpacaMarket}=require('./market');
 const {ny,openingRange,createLedger,step}=require('./paper');
-const symbols=(process.env.QUANT_V2_SYMBOLS||'QQQ,GLD').split(',').map(x=>x.trim().toUpperCase());
+const symbols=(process.env.QUANT_V2_SYMBOLS||'').split(',').map(x=>x.trim().toUpperCase());
 const stateFile=process.env.QUANT_V2_STATE_FILE||path.join(__dirname,'..','data','v2-paper.json');
 const mode=process.argv[2];
 const log=o=>console.log(JSON.stringify({time:new Date().toISOString(),...o}));
@@ -44,7 +44,7 @@ async function tick(){
   }catch(error){log({status:'error',reason:error.message});}
   finally{active=false;}
 }
-if(!['--once','--daemon'].includes(mode)||!symbols.length||symbols.length>10||symbols.some(s=>!/^[A-Z][A-Z0-9.]{0,9}$/.test(s))){
-  console.error('Usage: node v2/runner.js --once|--daemon; configure QUANT_V2_SYMBOLS=QQQ,GLD');process.exitCode=2;
+if(!['--once','--daemon'].includes(mode)||!symbols.length||symbols.length>10||symbols.some(s=>!/^[A-Z][A-Z0-9.]{0,9}$/.test(s)||/^(M?NQ)(?:[FGHJKMNQUVXZ][0-9]{1,2})?$/.test(s))){
+  console.error('Alpaca v2 supports explicitly chosen US stock/ETF tickers ONLY. NQ1! is a CME futures continuous chart, NOT QQQ. No default proxy is allowed. Set QUANT_V2_SYMBOLS only for a separate stock/ETF paper study.');process.exitCode=2;
 }else if(mode==='--once')tick();
 else{tick();setInterval(tick,60000);}

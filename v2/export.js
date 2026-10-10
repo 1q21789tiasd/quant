@@ -4,8 +4,8 @@ require('dotenv').config();
 const fs=require('node:fs'),path=require('node:path');
 const {AlpacaMarket}=require('./market');const {ny}=require('./paper');
 async function main(){
-  const symbol=(process.argv[2]||'QQQ').toUpperCase(),days=Number(process.argv[3]||45);
-  if(!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)||!Number.isInteger(days)||days<1||days>365)throw new Error('Usage: node v2/export.js QQQ 45');
+  const symbol=(process.argv[2]||'').toUpperCase(),days=Number(process.argv[3]||45);
+  if(!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)||/^(M?NQ)(?:[FGHJKMNQUVXZ][0-9]{1,2})?$/.test(symbol)||!Number.isInteger(days)||days<1||days>365)throw new Error('Usage: node v2/export.js <EXPLICIT_STOCK_TICKER> 45; CME NQ1! futures are not supported by Alpaca stocks API');
   const end=new Date(),start=new Date(end.getTime()-days*86400000);
   const bars=(await new AlpacaMarket().bars([symbol],start,end))[symbol].filter(b=>ny(b.t).minute>=570&&ny(b.t).minute<960);
   const csv=['timestamp,open,high,low,close,volume',...bars.map(b=>[b.t,b.o,b.h,b.l,b.c,b.v].join(','))].join('\n')+'\n';

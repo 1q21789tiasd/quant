@@ -1,4 +1,8 @@
-# Quant v2: Free Alpaca feed and automated local paper trading
+# Quant v2: Optional **stock/ETF-only** Alpaca paper experiment
+
+**Important user correction:** Quant's requested asset is `CME_MINI:NQ1!` — continuous E-mini Nasdaq-100 **futures**. This Alpaca stock feed is **not an NQ futures feed** and **must not substitute QQQ, GLD or any other ETF** for that request. The v2 stock-only paper engine requires an explicitly set `QUANT_V2_SYMBOLS` value; it is NOT enabled by default. For the correct TradingView NQ chart use `node v2/nq-inspect.js` (read-only screenshot/quote-label inspection; no order execution).
+
+## Legacy stock-only implementation
 
 Opt-in standalone engine on `gpt-dev`; does not alter the original Quant AI bot or website.
 
@@ -19,7 +23,7 @@ Get an Alpaca **Paper Only** account at https://alpaca.markets/. In Quant's exis
 ```dotenv
 ALPACA_KEY_ID=your_paper_only_key
 ALPACA_SECRET_KEY=your_paper_only_secret
-QUANT_V2_SYMBOLS=QQQ,GLD
+QUANT_V2_SYMBOLS= # leave empty for NQ; set an explicit ETF ticker ONLY if you separately want ETF research
 AUTO_START=false
 RUN_ON_START=false
 ```
@@ -55,3 +59,15 @@ The separate `research/orb-backtest.js` from the earlier research starter can co
 ### Not yet included
 
 Broker-native simulated order placement, new dashboard integration, streaming WebSocket, a validated consolidated-data backtest, deployment on your running EC2 instance. These require further work and/or credentials; this commit does not claim them done.
+
+
+## NQ1! futures (the target, not an ETF)
+
+- TradingView layout: https://www.tradingview.com/chart/Q2Yhm4MH/
+- Continuous symbol: `CME_MINI:NQ1!`. This is a **rolling** research/chart symbol; live orders require the actual deliverable futures contract, verified again at each roll.
+- Free CME quotes on TradingView are normally **10 minutes delayed** unless you have qualifying paid market-data access. A screenshot is NOT an accurate 1-minute automated futures feed.
+- `node v2/nq-inspect.js` uses Quant's existing Playwright chart capture. It **does not trade**, and reports requested symbol, chart statuses and extracted OHLC without claiming they are exchange-verified.
+- `node --test v2/nq.test.js` checks a futures-specific risk calculator using NQ $20 per point ($5/tick) and MNQ $2 per point ($0.50/tick). MNQ calculations are informational, not a symbol substitution.
+- Real-time NQ strategy automation requires actual CME-licensed NQ market data from a properly connected broker/data provider. There is currently **no verified unlimited free real-time CME NQ API** in this project.
+- The original Quant screenshot AI paper simulator is *not* futures-correct (stock/CFD-style margin and spread model), so `AUTO_START=false` and `RUN_ON_START=false` are now the safe defaults.
+- Source: https://www.tradingview.com/data-coverage/ and https://www.tradingview.com/support/solutions/43000483493-what-are-1-and-2-continuous-futures-contracts/
