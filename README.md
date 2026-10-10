@@ -1,173 +1,52 @@
-# Quant Bloodline
+# Quant — NQ1! research engine
 
-Quant is a **paper-trading research system** for NASDAQ analysis. It runs a headless Chromium browser on the server, opens TradingView, captures fresh chart images, scrapes visible chart metadata, builds the Bloodline context, asks the private decision engine for structured actions, validates every requested action against hard risk rules, and executes only in a simulated wallet.
+Clean NQ1!-only version. No QQQ, Alpaca, old AI, scraping, or real-money orders.
 
-It does **not** place real-money orders.
+**Market:** TradingView `CME_MINI:NQ1!` (continuous E-mini Nasdaq-100 futures). [Your TradingView layout](https://www.tradingview.com/chart/Q2Yhm4MH/).
 
-## Current market source
+This application is deliberately **historical research only**. A TradingView shared chart URL is **not a licensed real-time CME futures data API**. It does not pretend the displayed OHLC from a potentially delayed chart is executable. To analyze NQ1!, import your own properly licensed minute-bar CSV. Continuous future prices can be back-adjusted across rolls; results do not precisely represent contract fills.
 
-There is **no Twelve Data or other market-data API** in this build.
+## Setup
 
-Quant uses Playwright in headless mode to open TradingView directly.
-
-Every cycle currently captures:
-
-- NASDAQ 100 5m chart
-- NASDAQ 100 15m chart
-- NASDAQ 100 1h chart
-- NASDAQ 100 4h chart
-- visible chart legend values such as O/H/L/C when available
-- symbol / interval / exchange
-- TradingView market status such as delayed / market closed
-- best-effort TradingView Technicals-page text for each timeframe
-- a real PNG screenshot of every chart
-
-The **latest 5m TradingView screenshot is shown directly in the Quant dashboard**, and the UI lets you switch between the four latest captured timeframes.
-
-## Paper wallet
-
-Defaults:
-
-- Starting balance: **₪2,000**
-- Leverage simulation: **1:40**
-- Max margin per position: **₪450**
-- Max loss-at-stop for a new trade: **₪15**
-- Daily-loss kill switch: **₪120**
-- Maximum open positions: **1**
-- New positions require a stop loss
-- Daily ₪40 value is a benchmark only — never a forced target
-
-All limits are configurable in `.env`.
-
-## AWS / Ubuntu 24.04
+Requires Node.js 22+; **zero npm dependencies**.
 
 ```bash
-git clone https://github.com/1q21789tiasd/quant.git
-cd quant
-
-cp .env.example .env
-nano .env
-
-npm install
-
-# Install Chromium + Linux packages Playwright needs.
-sudo npx playwright install-deps chromium
-npx playwright install chromium
-
 npm start
+# open http://127.0.0.1:3000
+npm test
 ```
 
-Open:
+On AWS, put a reverse proxy with TLS/auth in front of this service; don't expose it unauthenticated. Optionally set `DASHBOARD_PASSWORD` via the shell, and use `HOST=127.0.0.1` behind Nginx.
 
-```text
-http://YOUR_EC2_PUBLIC_IP:3000
+## CSV data
+
+Upload a CSV containing **real, consecutive, one-minute NQ OHLC bars** in ISO-8601 timestamps with explicit UTC timezone/offset, standard 0.25-point price increments:
+
+```csv
+timestamp,open,high,low,close
+2026-10-12T13:30:00Z,22000,22001,21999,22000
+2026-10-12T13:31:00Z,22000,22001,21999,22000
 ```
 
-Allow inbound TCP 3000 in the EC2 security group, or put Nginx/Caddy in front of it.
+You need **all 390 one-minute candles for each normal 09:30–15:59 New York cash session** for the day to count; partial, missing or early-close sessions are skipped. The application does not fabricate missing data. The exported CSV may contain overnight bars, which are ignored in the current experiment. The strategy is a **cash-session opening range** applied to futures, not futures overnight breakout.
 
-For a public IP, set `DASHBOARD_PASSWORD`. Browser login:
+## Current strategy hypothesis
 
-- username: `quant`
-- password: your `DASHBOARD_PASSWORD`
+- Opening range from 09:30–09:59 ET (first two 15-min NYSE cash-session candles).
+- After 10:00 ET, enter long on a candle closing above the opening high; enter short closing below the low, **at the next candle's open** (avoids close-price lookahead).
+- Stop on opposite opening-range boundary; take profit 1:1 based on actual modeled entry. Exit after the entry's 15-min block doesn't confirm, otherwise by 15:59.
+- NQ contract multiplier $20/point, 0.25 point/tick, no fractional contracts. Same-bar stop/target ambiguity resolves pessimistically to stop. Slippage and round-trip fee are configurable.
+- Max 1 trade per NY cash session. Daily limit is a fail-safe, not a profit objective.
+- Risk cap defaults $15 per trade with fake $600 start. **Normal NQ stops frequently exceed this budget, so the correct result may be zero trades.** For example, 10 index points = $200 loss/contract before fees/slippage. Do not increase leverage or falsify risk to force trades.
 
-## Headless TradingView session
+## Important limitations
 
-Chromium is launched with:
+No live CME feed, broker margin/funding, real order routing, real-time alerts, or account connection. The latest backtest is stored locally in ignored `data/last-backtest.json`. Profits are hypothetical. Fill models do not recreate order-book executions or continuous-futures rolls. Backtest survival and profitability should be checked with multiple out-of-sample periods and licensed data before considering a live system.
 
-```text
-headless: true
---no-sandbox
---disable-setuid-sandbox
---disable-dev-shm-usage
-```
+## Files
 
-By default Quant uses public TradingView pages.
-
-If you later want to reuse a logged-in TradingView browser state, export a Playwright storage-state JSON file on the server and set:
-
-```env
-TRADINGVIEW_STORAGE_STATE=/home/ubuntu/quant/private/tradingview-state.json
-```
-
-Do **not** commit that file.
-
-## Runtime flow
-
-```text
-Every 15 minutes
-      ↓
-Headless Chromium
-      ↓
-TradingView 5m / 15m / 1h / 4h
-      ↓
-Real screenshots + visible O/H/L/C + TradingView technicals text
-      ↓
-Bloodline account + position + previous decisions
-      ↓
-private structured decision
-      ↓
-paperBroker.js validates actions
-      ↓
-simulated execution
-      ↓
-SQLite + context.md + live dashboard
-```
-
-## Database
-
-SQLite is created automatically at:
-
-```text
-data/quant.db
-```
-
-It stores:
-
-- market snapshots
-- screenshot metadata
-- every Bloodline cycle
-- raw structured decision JSON
-- every requested action
-- executed and rejected actions
-- open and closed positions
-- TP / SL changes
-- realized P/L
-- daily reports
-- system events
-
-Generated TradingView screenshots are stored in:
-
-```text
-data/charts/
-```
-
-The complete Bloodline input plus every streamed model output delta is logged to:
-
-```text
-context.md
-```
-
-These runtime files are ignored by Git.
-
-## Run continuously with systemd
-
-Adjust the path/user in `deploy/quant.service` if needed:
-
-```bash
-sudo cp deploy/quant.service /etc/systemd/system/quant.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now quant
-sudo systemctl status quant
-```
-
-Logs:
-
-```bash
-journalctl -u quant -f
-```
-
-## Important source limitation
-
-TradingView may show delayed market data depending on the symbol, session and account. Quant stores and shows TradingView's visible source-status label and the decision engine is instructed to respect it.
-
-This paper simulator also approximates Plus500-style leveraged exposure; it is not an exact reproduction of Plus500 CFD contract pricing or execution.
+- `market.js`: NQ CSV parsing, tick validation, New York session grouping.
+- `strategy.js`: contract risk math, ORB execution model, P&L and drawdown.
+- `server.js`: localhost API and dashboard serving.
+- `public/index.html`: dashboard and TradingView link.
+- `test/quant.test.js`: deterministic tests, including DST, risk, and stop gaps.

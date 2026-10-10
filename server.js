@@ -1,184 +1,46 @@
-require("dotenv").config();
-const express=require("express");
-const path=require("path");
-const config=require("./config");
-const db=require("./db");
-const broker=require("./paperBroker");
-const watcher=require("./watcher");
-const tradingView=require("./tradingView");
-const events=require("./eventBus");
-const logger=require("./logger");
-
-const app=express();
-app.disable("x-powered-by");
-app.use(express.json({limit:"1mb"}));
-
-if(config.DASHBOARD_PASSWORD){
-  app.use((req,res,next)=>{
-    if(req.path==="/api/health")return next();
-    const auth=req.headers.authorization||"";
-    if(auth.startsWith("Basic ")){
-      try{
-        const decoded=Buffer.from(auth.slice(6),"base64").toString("utf8");
-        const idx=decoded.indexOf(":");
-        const user=decoded.slice(0,idx),pass=decoded.slice(idx+1);
-        if(user==="quant"&&pass===config.DASHBOARD_PASSWORD)return next();
-      }catch{}
+'use strict';
+const http=require('node:http');const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');
+const {parseCsv}=require('./market');const {backtest,CONTRACT,DEFAULTS}=require('./strategy');
+const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
+const assets=path.join(__dirname,'public');const saved=path.join(__dirname,'data','last-backtest.json');
+const maxBody=26000000; // ~26 MB of 1m CSV
+function respond(res,status,body,contentType='application/json'){
+  res.writeHead(status,{'Content-Type':contentType+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'",'Referrer-Policy':'no-referrer'});
+  res.end(contentType==='application/json'?JSON.stringify(body):body);
+}
+function authOk(req,res){
+  const password=process.env.DASHBOARD_PASSWORD;
+  if(!password)return true;
+  const expected=Buffer.from('quant:'+password).toString('base64');
+  const got=(req.headers.authorization||'').replace(/^Basic\s+/i,'');
+  const a=Buffer.from(got),b=Buffer.from(expected);
+  if(a.length===b.length&&crypto.timingSafeEqual(a,b))return true;
+  res.writeHead(401,{'WWW-Authenticate':'Basic realm="Quant NQ"'});res.end('Authentication required');return false;
+}
+function receive(req){return new Promise((resolve,reject)=>{
+  let length=0,chunks=[];
+  req.on('data',chunk=>{length+=chunk.length;if(length>maxBody){reject(new Error('CSV too large'));req.destroy();}else chunks.push(chunk)});
+  req.on('end',()=>resolve(Buffer.concat(chunks).toString('utf8')));req.on('error',reject);
+});}
+function createServer(){return http.createServer(async(req,res)=>{
+  if(!authOk(req,res))return;
+  try {
+    const url=new URL(req.url,'http://localhost');
+    if(req.method==='GET'&&url.pathname==='/api/status')return respond(res,200,{instrument:CONTRACT,defaults:DEFAULTS,paperOnly:true,liveFeed:false,source:'CSV_UPLOAD_ONLY'});
+    if(req.method==='GET'&&url.pathname==='/api/results')return respond(res,200,fs.existsSync(saved)?JSON.parse(fs.readFileSync(saved,'utf8')):null);
+    if(req.method==='POST'&&url.pathname==='/api/backtest'){
+      // Use text/csv body to avoid copy/paste huge JSON; optional settings in query string.
+      if(!/^text\/csv(?:;|$)/i.test(req.headers['content-type']||''))return respond(res,415,{error:'Use Content-Type: text/csv'});
+      const params={};for(const key of Object.keys(DEFAULTS))if(url.searchParams.has(key))params[key]=Number(url.searchParams.get(key));
+      const report=backtest(parseCsv(await receive(req)),params);
+      fs.mkdirSync(path.dirname(saved),{recursive:true});
+      const tmp=saved+'.tmp';fs.writeFileSync(tmp,JSON.stringify(report,null,2));fs.renameSync(tmp,saved);
+      return respond(res,200,report);
     }
-    res.set("WWW-Authenticate",'Basic realm="Quant"');
-    return res.status(401).send("Authentication required");
-  });
-}
-
-app.use("/charts",express.static(config.CHART_DIR,{maxAge:"30m"}));
-app.use(express.static(path.join(__dirname,"public")));
-
-app.get("/api/health",(_req,res)=>res.json({ok:true,service:"quant"}));
-
-function snapshotState(){
-  const snap=db.latestSnapshot();
-  const price=snap?.price||null;
-  const account=broker.accountSnapshot(price);
-  const openPosition=db.getOpenPosition();
-  const cycle=db.latestCycle();
-  const reports=db.listDailyReports(1);
-
-  return {
-    watcher:watcher.getStatus(),
-    account,
-    openPosition,
-    latestSnapshot:snap?{
-      id:snap.id,
-      ts:snap.ts,
-      symbol:snap.symbol,
-      price:snap.price,
-      chartPath:snap.chart_path,
-      source:snap.data?.source||"TradingView",
-      sourceStatus:snap.data?.status||"",
-      name:snap.data?.name||config.MARKET_DISPLAY_NAME,
-      frames:snap.data?.frames||{}
-    }:null,
-    latestCycle:cycle?{
-      id:cycle.id,
-      ts:cycle.ts,
-      status:cycle.status,
-      trigger:cycle.trigger,
-      summary:cycle.summary,
-      confidence:cycle.confidence,
-      decision:cycle.decision,
-      error:cycle.error
-    }:null,
-    today:reports[0]||null,
-    limits:{
-      leverage:config.LEVERAGE,
-      maxMarginPerTradeNis:config.MAX_MARGIN_PER_TRADE_NIS,
-      maxRiskPerTradeNis:config.MAX_RISK_PER_TRADE_NIS,
-      maxDailyLossNis:config.MAX_DAILY_LOSS_NIS,
-      dailyBenchmarkNis:config.DAILY_BENCHMARK_NIS,
-      cycleMinutes:config.CYCLE_MINUTES
-    }
-  };
-}
-
-app.get("/api/state",(_req,res)=>res.json(snapshotState()));
-app.get("/api/cycles",(req,res)=>res.json({items:db.listCycles(req.query.limit)}));
-app.get("/api/actions",(req,res)=>res.json({items:db.listActions(req.query.limit)}));
-app.get("/api/trades",(req,res)=>res.json({items:db.listPositions(req.query.limit),events:db.listPositionEvents(250)}));
-app.get("/api/reports",(req,res)=>res.json({items:db.listDailyReports(req.query.limit)}));
-app.get("/api/events",(req,res)=>res.json({items:db.listSystemEvents(req.query.limit)}));
-
-app.get("/api/stream",(req,res)=>{
-  res.set({
-    "Content-Type":"text/event-stream",
-    "Cache-Control":"no-cache",
-    Connection:"keep-alive"
-  });
-  res.flushHeaders();
-  res.write("event: ready\ndata: {}\n\n");
-  const unsub=events.subscribe(evt=>{
-    res.write("event: update\ndata: "+JSON.stringify(evt)+"\n\n");
-  });
-  const ping=setInterval(()=>res.write(": ping\n\n"),20000);
-  req.on("close",()=>{clearInterval(ping);unsub()});
-});
-
-app.post("/api/control/run",(req,res)=>{
-  const startedAt=Date.now();
-  logger.log("HTTP","POST /api/control/run received",{
-    ip:req.ip,
-    current:watcher.getStatus()
-  });
-
-  try{
-    const request=watcher.requestCycle("manual");
-
-    logger.log("HTTP","Manual cycle request accepted immediately",{
-      restarted:!!request.restarted,
-      generation:request.generation,
-      responseMs:Date.now()-startedAt
-    });
-
-    return res.status(202).json({
-      ok:true,
-      accepted:true,
-      restarted:!!request.restarted,
-      generation:request.generation,
-      message:request.restarted
-        ? "Cancelling active cycle and starting fresh now"
-        : "Fresh manual cycle starting now"
-    });
-  }catch(error){
-    logger.error("HTTP","Manual cycle request failed before start",error);
-    return res.status(500).json({
-      ok:false,
-      message:"Fresh cycle could not be started"
-    });
-  }
-});
-
-app.post("/api/control/pause",(_req,res)=>{
-  watcher.pause();
-  res.json({ok:true});
-});
-
-app.post("/api/control/resume",(_req,res)=>{
-  watcher.resume();
-  res.json({ok:true});
-});
-
-app.post("/api/control/reset",(req,res)=>{
-  if(req.body?.confirm!=="RESET"){
-    return res.status(400).json({ok:false,message:"Confirmation required"});
-  }
-  broker.reset();
-  res.json({ok:true});
-});
-
-app.get("/",(_req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
-
-app.use((err,req,res,next)=>{
-  console.error("[QUANT]",err);
-  if(res.headersSent)return next(err);
-  res.status(500).json({ok:false,message:"Quant could not complete the request"});
-});
-
-const server=app.listen(config.PORT,"0.0.0.0",()=>{
-  logger.log("SERVER","Quant listening",{
-    address:"0.0.0.0",
-    port:config.PORT,
-    autoStart:config.AUTO_START,
-    runOnStart:config.RUN_ON_START,
-    cycleMinutes:config.CYCLE_MINUTES
-  });
-});
-
-async function shutdown(signal){
-  logger.log("SERVER","Shutting down",{signal});
-  watcher.pause();
-  await tradingView.closeBrowser().catch(()=>{});
-  server.close(()=>process.exit(0));
-  setTimeout(()=>process.exit(0),5000).unref();
-}
-
-process.on("SIGINT",()=>shutdown("SIGINT"));
-process.on("SIGTERM",()=>shutdown("SIGTERM"));
+    if(req.method==='GET'&&(url.pathname==='/'||url.pathname==='/index.html'))return respond(res,200,fs.readFileSync(path.join(assets,'index.html'),'utf8'),'text/html');
+    if(req.method==='GET'&&url.pathname==='/api/health')return respond(res,200,{ok:true});
+    respond(res,404,{error:'Not found'});
+  }catch(err){respond(res,400,{error:err.message||'Invalid request'})}
+});}
+if(require.main===module){if(!Number.isInteger(port)||port<1||port>65535)throw Error('PORT must be 1..65535');createServer().listen(port,host,()=>console.log(`Quant NQ research on http://${host}:${port} | no live orders | no real-time data`));}
+module.exports={createServer};

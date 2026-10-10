@@ -1,20 +1,9 @@
 {
-  "name": "quant-bloodline",
-  "version": "1.1.1",
+  "name": "quant-nq-research",
+  "version": "2.0.0",
   "private": true,
-  "description": "Quant autonomous NASDAQ paper-trading research system",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "browser:install": "playwright install chromium"
-  },
-  "engines": {
-    "node": ">=24"
-  },
-  "dependencies": {
-    "dotenv": "^16.4.7",
-    "express": "^5.1.0",
-    "playwright": "^1.55.0"
-  }
+  "description": "NQ1! futures opening-range research and local paper backtesting",
+  "type": "commonjs",
+  "engines": {"node": ">=22"},
+  "scripts": {"start": "node server.js", "test": "node --test test/*.test.js", "check": "node --check server.js && node --check strategy.js && node --check market.js"}
 }
