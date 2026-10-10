@@ -1,0 +1,14 @@
+[Unit]
+Description=Quant v2 free Alpaca IEX local paper research
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/quant
+ExecStart=/usr/bin/node v2/runner.js --daemon
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+[Install]
+WantedBy=multi-user.target
